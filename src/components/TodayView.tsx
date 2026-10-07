@@ -8,14 +8,14 @@ import type { Area, CleaningTask, Progress } from '../types'
 import { AreaSign, TimerRing } from './ui'
 
 const WHERE_TO_WORK: Record<Area['icon'], string> = {
-  photos: 'in der Galerie bzw. Fotos-App',
-  screenshots: 'im Screenshot-Album',
-  downloads: 'im Downloads-Ordner bzw. in der Dateien-App',
-  videos: 'in der Galerie bzw. im Videos-Ordner',
-  desktop: 'auf dem Desktop',
-  documents: 'im Dokumente-Ordner',
-  other: 'im jeweiligen Ordner',
-  mail: 'in deinem Mailprogramm',
+  photos: 'die Galerie',
+  screenshots: 'das Screenshot-Album',
+  downloads: 'den Downloads-Ordner',
+  videos: 'die Galerie',
+  desktop: 'den Desktop',
+  documents: 'den Dokumente-Ordner',
+  other: 'den Ordner',
+  mail: 'dein Postfach',
 }
 
 export function TodayView(props: {
@@ -107,7 +107,7 @@ export function TodayView(props: {
 
           <div className="guide-panel">
             <h3>{isEmail ? 'Für jede E-Mail kurz entscheiden' : 'Für jede Datei kurz entscheiden'}</h3>
-            <p className="guide-lead">Du arbeitest direkt {WHERE_TO_WORK[selectedArea.icon]}. Hier musst du nichts mitzählen.</p>
+            <p className="guide-lead">Öffne {WHERE_TO_WORK[selectedArea.icon]} und starte mit dem Ältesten.</p>
             <ol className="guide-steps">
               <li>
                 <span className="guide-icon delete"><Trash2 size={18} /></span>
