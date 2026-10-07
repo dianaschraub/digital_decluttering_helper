@@ -4,6 +4,7 @@ import { calendarFeedUrl, describeSeries, downloadSeriesIcs, openSeriesInGoogle 
 import { planSlots } from '../lib/schedule'
 import { AREA_TYPES, EMAIL_COLORS, FREQUENCIES, MAX_AREAS, MAX_DESTINATIONS, RHYTHMS, WEEKDAYS, WEEKDAY_ORDER, areaType, makeId, rhythmLabel } from '../lib/settingsSchema'
 import type { Area, AreaIconName, AreaKind, Destination, Progress, ReminderSettings, UserSettings } from '../types'
+import { PrivacyLink } from './PrivacyNotice'
 import { AreaSign } from './ui'
 
 const DURATIONS = [15, 20, 30, 45, 60]
@@ -206,6 +207,7 @@ export function SettingsView(props: {
         <div className="subscribe-actions">
           <button type="button" className="button ghost" onClick={props.onLogout}>Abmelden</button>
           <button type="button" className="button ghost danger-text" onClick={props.onDeleteAccount}><Trash2 size={16} /> Konto und alle Daten löschen</button>
+          <PrivacyLink className="button ghost" />
         </div>
       </section>
 

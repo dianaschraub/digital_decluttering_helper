@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { acceptInvite, getSettings, login, requestPasswordRecovery, signup, updateUser } from '../lib/auth'
 import type { CallbackResult, User } from '../lib/auth'
+import { PrivacyLink } from './PrivacyNotice'
 import { BrandMark } from './ui'
 
 export function LoginScreen({ flow, initialError, onAuthenticated, onFlowComplete }: {
@@ -103,6 +104,7 @@ export function LoginScreen({ flow, initialError, onAuthenticated, onFlowComplet
               {mode === 'login' && <button type="button" className="text-button subtle" onClick={() => { setMode('recovery'); setError('') }}>Passwort vergessen?</button>}
             </div>}
             {mode === 'signup' && <p className="small muted">Deine Daten sind nur für dich sichtbar. Du kannst dein Konto jederzeit in den Einstellungen samt allen Daten löschen.</p>}
+            <div className="login-footer"><PrivacyLink /></div>
             {mode === 'login' && !signupAllowed && <p className="small muted">Neue Konten werden derzeit nur per Einladung angelegt.</p>}
           </form>
         )}

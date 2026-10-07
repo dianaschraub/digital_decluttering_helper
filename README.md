@@ -72,6 +72,9 @@ npm run dev
 - Anhänge werden mit `Content-Disposition: attachment` und `nosniff` ausgeliefert, höchstens 4 MB.
 - Schriften werden mit der App ausgeliefert; es gibt keine Verbindung zu Google Fonts.
 
+- Ein kurzer Datenschutzhinweis in einfachen Worten ist auf der Anmeldeseite und in den Einstellungen verlinkt (`src/components/PrivacyNotice.tsx`). Er ist für einen privaten Kreis gedacht und ersetzt keine vollständige Datenschutzerklärung.
+- Suchmaschinen werden gebeten, die App nicht aufzunehmen (`robots.txt`, `noindex`).
+
 **Wenn andere die App nutzen:** Wer in Deutschland eine Website für andere betreibt, braucht in der Regel ein Impressum und eine Datenschutzerklärung (u. a. zu Netlify als Hoster und Auftragsverarbeiter). Das ist keine technische, sondern eine rechtliche Frage und sollte vor dem Teilen des Links geklärt werden.
 
 ## Funktionsgrenzen
