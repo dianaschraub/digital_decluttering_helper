@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowRight, Bell, CalendarPlus, CheckCheck, FolderInput, Pause, Play, Plus, RotateCcw, Trash2, Undo2 } from 'lucide-react'
-import { AREAS } from '../data'
+import { ArrowRight, Bell, CalendarPlus, FolderInput, ListPlus, Pause, Play, RotateCcw, Trash2, Zap } from 'lucide-react'
+import { AREAS, destinationsFor } from '../data'
 import { backlogDays, formatBacklog, formatProgress, nextProgressLabel } from '../lib/dates'
-import type { Area, CleaningTask, Progress, SessionCounts } from '../types'
+import type { Area, CleaningTask, Progress } from '../types'
 import { AreaSign, TimerRing } from './ui'
+
+const WHERE_TO_WORK: Record<Area['icon'], string> = {
+  photos: 'in der Galerie bzw. Fotos-App',
+  screenshots: 'im Screenshot-Album',
+  downloads: 'im Downloads-Ordner bzw. in der Dateien-App',
+  mail: 'in deinem Mailprogramm',
+}
 
 export function TodayView(props: {
   focusArea: Area
@@ -13,23 +20,17 @@ export function TodayView(props: {
   timerProgress: number
   running: boolean
   started: boolean
-  counts: SessionCounts
-  canUndo: boolean
   dueTasks: CleaningTask[]
   weeklyDue: boolean
   onChooseArea: (id: string) => void
   onToggleTimer: () => void
   onResetTimer: () => void
-  onDelete: () => void
-  onSort: () => void
-  onQuickDone: () => void
-  onUndo: () => void
   onNewTask: () => void
   onFinish: () => void
   onCalendar: () => void
   onAttention: () => void
 }) {
-  const { selectedArea, selectedProgress, counts } = props
+  const { selectedArea, selectedProgress } = props
   const isEmail = selectedArea.kind === 'email'
   const timerRef = useRef<HTMLDivElement>(null)
   const [timerVisible, setTimerVisible] = useState(true)
@@ -96,22 +97,35 @@ export function TodayView(props: {
             <button className="calendar-link" onClick={props.onCalendar}><CalendarPlus size={14} /> In Google Kalender planen</button>
           </div>
 
-          <div className="decision-panel">
-            <h3>{isEmail ? 'Was braucht diese E-Mail?' : 'Was soll mit dieser Datei geschehen?'}</h3>
-            <div className="decision-buttons">
-              <button className="decision delete" onClick={props.onDelete}><span><Trash2 size={22} /></span><strong>Löschen</strong><small>nicht mehr nötig</small></button>
-              <button className="decision sort" onClick={props.onSort}><span><FolderInput size={22} /></span><strong>{isEmail ? 'Archivieren' : 'Einsortieren'}</strong><small>an den richtigen Ort</small></button>
-            </div>
-            {isEmail && <div className="email-actions">
-              <button onClick={props.onQuickDone}><CheckCheck size={20} /><div><strong>Unter 2 Minuten erledigt</strong><small>direkt beantworten oder ausführen</small></div></button>
-              <button onClick={props.onNewTask}><Plus size={20} /><div><strong>Nächste Handlung</strong><small>Aufgabe, Wiedervorlage und Anhang</small></div></button>
-            </div>}
-            <div className="counter-row">
-              <span><b key={`d${counts.deleted}`}>{counts.deleted}</b> gelöscht</span>
-              <span><b key={`s${counts.sorted}`}>{counts.sorted}</b> einsortiert</span>
-              {isEmail && <span><b key={`q${counts.quickDone}`}>{counts.quickDone}</b> erledigt</span>}
-              <button className="undo-button" onClick={props.onUndo} disabled={!props.canUndo}><Undo2 size={15} /> Rückgängig</button>
-            </div>
+          <div className="guide-panel">
+            <h3>{isEmail ? 'Für jede E-Mail kurz entscheiden' : 'Für jede Datei kurz entscheiden'}</h3>
+            <p className="guide-lead">Du arbeitest direkt {WHERE_TO_WORK[selectedArea.icon]}. Hier musst du nichts mitzählen.</p>
+            <ol className="guide-steps">
+              <li>
+                <span className="guide-icon delete"><Trash2 size={18} /></span>
+                <div><strong>Nicht mehr nötig? Löschen.</strong><small>{isEmail ? 'Newsletter, Werbung, erledigte Vorgänge' : 'Doppelte, unscharfe oder erledigte Dateien'}</small></div>
+              </li>
+              <li>
+                <span className="guide-icon sort"><FolderInput size={18} /></span>
+                <div>
+                  <strong>{isEmail ? 'Zum Nachschlagen behalten? Archivieren.' : 'Behalten? An genau einen Ort.'}</strong>
+                  <span className="guide-chips">{destinationsFor(selectedArea.kind).map((destination) => <span key={destination.id} title={destination.note}>{destination.label}</span>)}</span>
+                </div>
+              </li>
+              {isEmail && <li>
+                <span className="guide-icon quick"><Zap size={18} /></span>
+                <div><strong>Unter 2 Minuten? Sofort erledigen.</strong><small>Antworten, weiterleiten, bestätigen – dann archivieren</small></div>
+              </li>}
+              <li>
+                <span className="guide-icon task"><ListPlus size={18} /></span>
+                <div>
+                  <strong>Dauert länger? Nächste Handlung notieren.</strong>
+                  <small>{isEmail ? 'Mit Wiedervorlage – danach ist die Mail aus dem Eingang' : 'Etwa Rechnung bezahlen oder Formular ausfüllen'}</small>
+                  <button className="guide-action" onClick={props.onNewTask}>Nächste Handlung notieren</button>
+                </div>
+              </li>
+            </ol>
+            {!isEmail && <p className="small muted guide-note">Die Sicherungs-SSD ist kein Ablageziel. Sie erhält später nur Kopien deiner Hauptablage.</p>}
             <button className="button dark full" onClick={props.onFinish}>Einheit abschließen & Stand speichern</button>
           </div>
         </div>

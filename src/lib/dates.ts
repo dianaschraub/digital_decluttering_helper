@@ -72,3 +72,65 @@ export function nextProgressLabel(type: ProgressType, value: string) {
   date.setDate(date.getDate() + 1)
   return `Weiter ab ${new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)}.`
 }
+
+export interface ProgressPoint {
+  type: ProgressType
+  value: string
+}
+
+export interface CoveredPeriod {
+  /** z. B. „April – Juni 2025“ */
+  range: string
+  /** z. B. „3 Monate“ oder „11 Tage“; leer, wenn kein neuer Zeitraum dazukam */
+  amount: string
+  days: number
+}
+
+const monthFormat = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' })
+const monthOnlyFormat = new Intl.DateTimeFormat('de-DE', { month: 'long' })
+const dayFormat = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+const dayShortFormat = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit' })
+
+function monthIndex(value: string) {
+  const [year, month] = value.split('-').map(Number)
+  return year * 12 + month - 1
+}
+
+/**
+ * Welcher Zeitraum wurde zwischen zwei gespeicherten Ständen aufgeräumt?
+ * Ohne vorherigen Stand lässt sich kein Beginn bestimmen – dann nur „bis …“.
+ */
+export function coveredPeriod(previous: ProgressPoint | null | undefined, current: ProgressPoint): CoveredPeriod {
+  const endBoundary = progressBoundary(current.type, current.value)
+  if (!previous?.value || Number.isNaN(endBoundary)) {
+    return { range: `bis ${formatProgress(current.type, current.value)}`, amount: '', days: 0 }
+  }
+  const startBoundary = progressBoundary(previous.type, previous.value)
+  const days = Math.round((endBoundary - startBoundary) / DAY)
+  if (Number.isNaN(days) || days <= 0) {
+    return { range: `bis ${formatProgress(current.type, current.value)}`, amount: '', days: 0 }
+  }
+  const start = new Date(startBoundary + 1000) // erster Tag nach dem alten Stand
+  const end = new Date(endBoundary)
+
+  if (previous.type === 'month' && current.type === 'month') {
+    const months = monthIndex(current.value) - monthIndex(previous.value)
+    const sameYear = start.getFullYear() === end.getFullYear()
+    const range = months === 1
+      ? monthFormat.format(end)
+      : `${sameYear ? monthOnlyFormat.format(start) : monthFormat.format(start)} – ${monthFormat.format(end)}`
+    return { range, amount: months === 1 ? '1 Monat' : `${months} Monate`, days }
+  }
+
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const range = days === 1
+    ? dayFormat.format(end)
+    : `${sameYear ? dayShortFormat.format(start) : dayFormat.format(start)} – ${dayFormat.format(end)}`
+  return { range, amount: formatSpan(days), days }
+}
+
+export function formatSpan(days: number) {
+  if (days < 60) return days === 1 ? '1 Tag' : `${days} Tage`
+  const months = Math.round(days / 30.4)
+  return `${months} Monate`
+}

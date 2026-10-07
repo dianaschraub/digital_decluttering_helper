@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CircleAlert, Cloud, History, LayoutGrid, ListChecks, LoaderCircle, LogOut, Timer } from 'lucide-react'
-import { AREAS, MEMOS, destinationsFor, findArea, suggestArea } from '../data'
+import { AREAS, MEMOS, findArea, suggestArea } from '../data'
 import { createTask, completeTask, deleteTask, finishCleaningSession, loadAppData, openAttachment, saveWeeklyCheck } from '../lib/api'
 import { logout } from '../lib/auth'
 import { openCleaningCalendar, openTaskCalendar } from '../lib/calendar'
-import { currentMonthIso, progressBoundary, todayIso } from '../lib/dates'
+import { coveredPeriod, currentMonthIso, progressBoundary, todayIso } from '../lib/dates'
+import type { CoveredPeriod } from '../lib/dates'
 import { exportCsv } from '../lib/export'
 import { formatClock, useCleaningSession } from '../hooks/useCleaningSession'
-import type { AppView, CleaningSession, CleaningTask, Decision, Progress, ProgressType, SyncState, TaskDraft, WeeklyCheck } from '../types'
+import type { AppView, CleaningSession, CleaningTask, Progress, ProgressType, SyncState, TaskDraft, WeeklyCheck } from '../types'
 import { AreasView } from './AreasView'
 import { HistoryView } from './HistoryView'
 import { TasksView } from './TasksView'
@@ -16,7 +17,6 @@ import { BrandMark, CenteredMessage, Modal, vibrate } from './ui'
 
 const EMPTY_TASK: TaskDraft = { title: '', dueDate: '', areaId: '', file: null }
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
-const DECISION_LABEL: Record<Decision, string> = { deleted: 'gelöscht', sorted: 'einsortiert', quickDone: 'erledigt' }
 const BASE_TITLE = 'Digital Cleaning'
 
 export function CleaningApp() {
@@ -32,12 +32,14 @@ export function CleaningApp() {
   const [finishOpen, setFinishOpen] = useState(false)
   const [finishRequested, setFinishRequested] = useState(false)
   const [timeUp, setTimeUp] = useState(false)
-  const [destinationOpen, setDestinationOpen] = useState(false)
   const [taskOpen, setTaskOpen] = useState(false)
-  const [memo, setMemo] = useState('')
+  const [memo, setMemo] = useState<{ text: string; covered: CoveredPeriod } | null>(null)
   const [progressType, setProgressType] = useState<ProgressType>('month')
   const [progressValue, setProgressValue] = useState(currentMonthIso())
   const [progressNote, setProgressNote] = useState('')
+  // Freiwillige, grob geschätzte Zahlen – leer lassen ist ausdrücklich in Ordnung.
+  const [roughDeleted, setRoughDeleted] = useState('')
+  const [roughSorted, setRoughSorted] = useState('')
   const [taskDraft, setTaskDraft] = useState<TaskDraft>(EMPTY_TASK)
   const [busy, setBusy] = useState(false)
   const [weeklyNote, setWeeklyNote] = useState('')
@@ -117,24 +119,18 @@ export function CleaningApp() {
     setView('today')
     window.scrollTo({ top: 0, behavior: 'smooth' })
     if (areaId === session.areaId) return
-    const hasWork = session.counts.deleted + session.counts.sorted + session.counts.quickDone > 0 || session.progress > 0
-    if (hasWork && !window.confirm('Die laufende Einheit ist noch nicht gespeichert. Trotzdem den Bereich wechseln?')) return
+    if (session.progress > 0 && !window.confirm('Die laufende Einheit ist noch nicht gespeichert. Trotzdem den Bereich wechseln?')) return
     session.switchArea(areaId)
     setTimeUp(false)
     fillProgressForm(progress.find((item) => item.area_id === areaId))
   }
 
-  function decide(decision: Decision, message?: string) {
-    vibrate(12)
-    session.record(decision)
-    if (message) setNotice(message)
-  }
+  const previousPoint = selectedProgress ? { type: selectedProgress.progress_type, value: selectedProgress.progress_value } : null
+  const covered = progressValue ? coveredPeriod(previousPoint, { type: progressType, value: progressValue }) : null
 
-  function undoDecision() {
-    if (!session.lastDecision) return
-    vibrate([8, 40, 8])
-    setNotice(`Rückgängig: 1 × ${DECISION_LABEL[session.lastDecision]}`)
-    session.undo()
+  function roughNumber(value: string) {
+    const parsed = Number.parseInt(value, 10)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
   }
 
   async function saveSession(event: React.FormEvent) {
@@ -147,7 +143,7 @@ export function CleaningApp() {
     const result = await withSync(() => finishCleaningSession({
       areaId: selectedArea.id,
       durationMinutes: session.elapsedMinutes,
-      counts: session.counts,
+      counts: { deleted: roughNumber(roughDeleted), sorted: roughNumber(roughSorted), quickDone: 0 },
       progressType,
       progressValue,
       note: progressNote,
@@ -158,10 +154,12 @@ export function CleaningApp() {
     setSessions((items) => [result.session, ...items])
     setFinishOpen(false)
     setProgressNote('')
+    setRoughDeleted('')
+    setRoughSorted('')
     setTimeUp(false)
     session.clear()
     const options = MEMOS[selectedArea.kind]
-    setMemo(options[Math.floor(Math.random() * options.length)])
+    setMemo({ text: options[Math.floor(Math.random() * options.length)], covered: coveredPeriod(previousPoint, { type: progressType, value: progressValue }) })
   }
 
   function openNewTask(areaId = selectedArea.id) {
@@ -231,8 +229,6 @@ export function CleaningApp() {
           timerProgress={session.progress}
           running={session.running}
           started={session.progress > 0}
-          counts={session.counts}
-          canUndo={Boolean(session.lastDecision)}
           dueTasks={dueTasks}
           weeklyDue={weeklyDue}
           onChooseArea={chooseArea}
@@ -241,10 +237,6 @@ export function CleaningApp() {
             else { setTimeUp(false); if (session.remainingMs <= 0) session.resetTimer(); session.start() }
           }}
           onResetTimer={() => { session.resetTimer(); setTimeUp(false) }}
-          onDelete={() => decide('deleted')}
-          onSort={() => setDestinationOpen(true)}
-          onQuickDone={() => decide('quickDone')}
-          onUndo={undoDecision}
           onNewTask={() => openNewTask()}
           onFinish={openFinish}
           onCalendar={() => openCleaningCalendar(`${selectedArea.title} (${selectedArea.subtitle})`)}
@@ -294,18 +286,20 @@ export function CleaningApp() {
             <input type={progressType === 'month' ? 'month' : 'date'} value={progressValue} onChange={(event) => setProgressValue(event.target.value)} required />
           </label>
           <label>Notiz <span className="optional">optional</span><textarea value={progressNote} onChange={(event) => setProgressNote(event.target.value)} placeholder="Was ist beim nächsten Mal wichtig?" rows={2} /></label>
-          <div className="mini-summary"><span>{session.elapsedMinutes} Min.</span><span>{session.counts.deleted} gelöscht</span><span>{session.counts.sorted} einsortiert</span>{selectedArea.kind === 'email' && <span>{session.counts.quickDone} direkt erledigt</span>}</div>
+          {covered && <div className={`covered-preview ${covered.days > 0 ? '' : 'neutral'}`}>
+            <span>Diese Einheit · {session.elapsedMinutes} Min.</span>
+            <strong>{covered.days > 0 ? `${covered.amount} aufgeräumt` : covered.range}</strong>
+            {covered.days > 0 && <small>{covered.range}</small>}
+          </div>}
+          <details className="rough-counts">
+            <summary>Zahlen ergänzen <span className="optional">freiwillig, grob geschätzt</span></summary>
+            <div className="rough-grid">
+              <label>ca. gelöscht<input type="number" inputMode="numeric" min={0} value={roughDeleted} onChange={(event) => setRoughDeleted(event.target.value)} placeholder="–" /></label>
+              <label>ca. {selectedArea.kind === 'email' ? 'archiviert' : 'einsortiert'}<input type="number" inputMode="numeric" min={0} value={roughSorted} onChange={(event) => setRoughSorted(event.target.value)} placeholder="–" /></label>
+            </div>
+          </details>
           <button className="button primary full" disabled={busy}>{busy ? 'Wird gespeichert …' : 'Stand speichern'}</button>
         </form>
-      </Modal>}
-
-      {destinationOpen && <Modal title={selectedArea.kind === 'email' ? 'Wohin gehört die E-Mail?' : 'Wohin gehört die Datei?'} onClose={() => setDestinationOpen(false)}>
-        <div className="destination-list">
-          {destinationsFor(selectedArea.kind).map((destination) => <button key={destination.id} onClick={() => { decide('sorted', `Einsortiert: ${destination.label}`); setDestinationOpen(false) }}>
-            <span>{destination.label}</span><small>{destination.note}</small>
-          </button>)}
-        </div>
-        {selectedArea.kind === 'files' && <p className="small muted">Die Sicherungs-SSD ist kein Ablageziel. Sie erhält später nur Kopien deiner Hauptablage.</p>}
       </Modal>}
 
       {taskOpen && <Modal title="Nächste Handlung notieren" onClose={() => setTaskOpen(false)}>
@@ -318,9 +312,10 @@ export function CleaningApp() {
         </form>
       </Modal>}
 
-      {memo && <Modal title="Gut gemacht" onClose={() => setMemo('')} compact>
-        <blockquote>{memo}</blockquote>
-        <button className="button primary full" onClick={() => setMemo('')}>Verstanden</button>
+      {memo && <Modal title="Gut gemacht" onClose={() => setMemo(null)} compact>
+        {memo.covered.days > 0 && <p className="memo-covered"><strong>{memo.covered.amount} aufgeräumt</strong><span>{memo.covered.range}</span></p>}
+        <blockquote>{memo.text}</blockquote>
+        <button className="button primary full" onClick={() => setMemo(null)}>Verstanden</button>
       </Modal>}
     </div>
   )

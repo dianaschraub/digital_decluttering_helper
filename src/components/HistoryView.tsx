@@ -1,6 +1,7 @@
 import { Check, Download } from 'lucide-react'
 import { AREAS, findArea } from '../data'
-import { formatDate, formatProgress } from '../lib/dates'
+import { coveredPeriod, formatDate, formatSpan } from '../lib/dates'
+import type { CoveredPeriod } from '../lib/dates'
 import type { CleaningSession, Progress, WeeklyCheck } from '../types'
 import { AreaSign } from './ui'
 
@@ -16,7 +17,8 @@ export function HistoryView(props: {
   onExport: () => void
 }) {
   const totalMinutes = props.sessions.reduce((sum, session) => sum + session.duration_minutes, 0)
-  const totalDecisions = props.sessions.reduce((sum, session) => sum + session.deleted_count + session.sorted_count + session.quick_done_count, 0)
+  const covered = coveredBySession(props.sessions)
+  const totalDays = [...covered.values()].reduce((sum, item) => sum + item.days, 0)
   return (
     <section>
       <div className="page-heading">
@@ -26,7 +28,7 @@ export function HistoryView(props: {
       <div className="stats-grid">
         <div><span>{props.sessions.length}</span><small>Einheiten</small></div>
         <div><span>{totalMinutes}</span><small>Minuten</small></div>
-        <div><span>{totalDecisions}</span><small>Entscheidungen</small></div>
+        <div><span>{totalDays > 0 ? formatSpan(totalDays) : '–'}</span><small>Zeitraum aufgeräumt</small></div>
         <div><span>{props.progress.length}/{AREAS.length}</span><small>Bereiche begonnen</small></div>
       </div>
 
@@ -42,16 +44,19 @@ export function HistoryView(props: {
         {props.sessions.length === 0 && <p className="muted">Noch keine Einheit gespeichert.</p>}
         {props.sessions.map((session) => {
           const area = findArea(session.area_id)
+          const period = covered.get(session.id)
+          const hasCounts = session.deleted_count + session.sorted_count + session.quick_done_count > 0
           return (
             <article key={session.id}>
               {area && <AreaSign area={area} size="small" />}
               <div>
                 <strong>{area?.title ?? session.area_id} <small>{area?.subtitle}</small></strong>
-                <p>{formatDate(session.finished_at, true)} · bis {formatProgress(session.progress_type, session.progress_value)} · {session.duration_minutes} Min.</p>
+                <p>{formatDate(session.finished_at, true)} · {session.duration_minutes} Min. · {period?.range}</p>
               </div>
               <div className="history-counts">
-                <span>{session.deleted_count} gelöscht</span>
-                <span>{session.sorted_count} einsortiert</span>
+                {period && period.days > 0 && <span className="covered">{period.amount}</span>}
+                {hasCounts && session.deleted_count > 0 && <span>ca. {session.deleted_count} gelöscht</span>}
+                {hasCounts && session.sorted_count > 0 && <span>ca. {session.sorted_count} einsortiert</span>}
                 {session.quick_done_count > 0 && <span>{session.quick_done_count} erledigt</span>}
               </div>
             </article>
@@ -60,4 +65,23 @@ export function HistoryView(props: {
       </div>
     </section>
   )
+}
+
+/**
+ * Ordnet jeder Einheit den Zeitraum zu, den sie geschafft hat: vom Stand der
+ * vorherigen Einheit desselben Bereichs bis zum eigenen Stand.
+ */
+function coveredBySession(sessions: CleaningSession[]) {
+  const result = new Map<string, CoveredPeriod>()
+  const chronological = [...sessions].sort((a, b) => a.finished_at.localeCompare(b.finished_at))
+  const lastByArea = new Map<string, CleaningSession>()
+  for (const session of chronological) {
+    const previous = lastByArea.get(session.area_id)
+    result.set(session.id, coveredPeriod(
+      previous ? { type: previous.progress_type, value: previous.progress_value } : null,
+      { type: session.progress_type, value: session.progress_value },
+    ))
+    lastByArea.set(session.area_id, session)
+  }
+  return result
 }

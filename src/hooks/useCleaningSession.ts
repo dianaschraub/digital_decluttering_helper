@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Decision, SessionCounts } from '../types'
-
+import { useCallback, useEffect, useRef, useState } from 'react'
 export const SESSION_MS = 20 * 60 * 1000
 const STORAGE_KEY = 'digital-cleaning:session-v1'
 
@@ -10,11 +8,10 @@ interface StoredSession {
   endAt: number | null
   /** Verbleibende Zeit, solange der Timer pausiert ist. */
   remainingMs: number
-  log: Decision[]
 }
 
 function freshSession(areaId: string): StoredSession {
-  return { areaId, endAt: null, remainingMs: SESSION_MS, log: [] }
+  return { areaId, endAt: null, remainingMs: SESSION_MS }
 }
 
 function readStored(fallbackAreaId: string): StoredSession {
@@ -27,19 +24,14 @@ function readStored(fallbackAreaId: string): StoredSession {
       areaId: parsed.areaId,
       endAt: typeof parsed.endAt === 'number' ? parsed.endAt : null,
       remainingMs: typeof parsed.remainingMs === 'number' ? Math.min(SESSION_MS, Math.max(0, parsed.remainingMs)) : SESSION_MS,
-      log: Array.isArray(parsed.log) ? parsed.log.filter((entry): entry is Decision => entry === 'deleted' || entry === 'sorted' || entry === 'quickDone') : [],
     }
   } catch {
     return freshSession(fallbackAreaId)
   }
 }
 
-function countLog(log: Decision[]): SessionCounts {
-  return log.reduce<SessionCounts>((counts, entry) => ({ ...counts, [entry]: counts[entry] + 1 }), { deleted: 0, sorted: 0, quickDone: 0 })
-}
-
 /**
- * Timer und Zähler einer Cleaning-Einheit.
+ * Timer einer Cleaning-Einheit.
  *
  * Der Timer zählt nicht Sekunde für Sekunde herunter, sondern merkt sich die
  * Endzeit. Dadurch stimmt er auch dann, wenn der Browser die Seite im
@@ -101,11 +93,8 @@ export function useCleaningSession(fallbackAreaId: string, isValidArea: (id: str
   }, [])
 
   const switchArea = useCallback((areaId: string) => setSession(freshSession(areaId)), [])
-  const record = useCallback((decision: Decision) => setSession((current) => ({ ...current, log: [...current.log, decision] })), [])
-  const undo = useCallback(() => setSession((current) => ({ ...current, log: current.log.slice(0, -1) })), [])
   const clear = useCallback(() => setSession((current) => freshSession(current.areaId)), [])
 
-  const counts = useMemo(() => countLog(session.log), [session.log])
   const elapsedMinutes = Math.max(1, Math.round((SESSION_MS - remainingMs) / 60000))
 
   return {
@@ -113,15 +102,11 @@ export function useCleaningSession(fallbackAreaId: string, isValidArea: (id: str
     running,
     remainingMs,
     progress: 1 - remainingMs / SESSION_MS,
-    counts,
-    lastDecision: session.log[session.log.length - 1] ?? null,
     elapsedMinutes,
     start,
     pause,
     resetTimer,
     switchArea,
-    record,
-    undo,
     clear,
   }
 }

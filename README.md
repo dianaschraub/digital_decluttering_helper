@@ -8,8 +8,9 @@ Eine private, mobile Web-App, mit der du Bilder, Screenshots, Downloads und zwei
 - 20-Minuten-Timer mit Fortschrittsring, der auch beim Wechsel in die Foto- oder Mail-App und nach einem Neuladen weiterläuft
 - Bearbeitung von den ältesten Dateien nach vorn, mit sichtbarem Rückstand je Bereich
 - Vorschlag des Bereichs, der gemessen an seinem Rhythmus am stärksten überfällig ist
-- Entscheidungen **Löschen** oder **Einsortieren** mit passender Zielauswahl für Dateien bzw. E-Mails, inklusive **Rückgängig**
-- bei E-Mails zusätzlich **Unter 2 Minuten erledigt** und **Nächste Handlung**
+- Spickkarte mit der Entscheidungsregel (löschen, einsortieren, bei E-Mails sofort erledigen, nächste Handlung) und deinen Ablageorten – du arbeitest direkt in der Foto-, Datei- oder Mail-App und musst nichts mitklicken
+- **Nächste Handlung** legt eine echte Aufgabe mit Wiedervorlage an
+- nach jeder Einheit zeigt die App, welcher Zeitraum geschafft ist (z. B. „3 Monate aufgeräumt“); grobe Zahlen zu Gelöschtem und Einsortiertem sind freiwillig
 - eigener Monats- oder Tagesstand je Bereich
 - Aufgaben und Wiedervorlagen mit Erledigt-Schaltfläche
 - private Bild- und Dateianhänge bis 4 MB

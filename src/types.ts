@@ -2,7 +2,6 @@ export type AreaKind = 'files' | 'email'
 export type AreaIconName = 'photos' | 'screenshots' | 'downloads' | 'mail'
 export type ProgressType = 'month' | 'date'
 export type TaskStatus = 'open' | 'done'
-export type Decision = 'deleted' | 'sorted' | 'quickDone'
 
 export interface Area {
   id: string
