@@ -1,5 +1,5 @@
 import { Check, Download } from 'lucide-react'
-import { AREAS, findArea } from '../data'
+import { useSettings } from '../lib/settingsContext'
 import { coveredPeriod, formatDate, formatSpan } from '../lib/dates'
 import type { CoveredPeriod } from '../lib/dates'
 import type { CleaningSession, Progress, WeeklyCheck } from '../types'
@@ -16,6 +16,8 @@ export function HistoryView(props: {
   onWeeklyDone: () => void
   onExport: () => void
 }) {
+  const { activeAreas, findArea } = useSettings()
+  const startedAreas = activeAreas.filter((area) => props.progress.some((item) => item.area_id === area.id)).length
   const totalMinutes = props.sessions.reduce((sum, session) => sum + session.duration_minutes, 0)
   const covered = coveredBySession(props.sessions)
   const totalDays = [...covered.values()].reduce((sum, item) => sum + item.days, 0)
@@ -29,7 +31,7 @@ export function HistoryView(props: {
         <div><span>{props.sessions.length}</span><small>Einheiten</small></div>
         <div><span>{totalMinutes}</span><small>Minuten</small></div>
         <div><span>{totalDays > 0 ? formatSpan(totalDays) : '–'}</span><small>Zeitraum aufgeräumt</small></div>
-        <div><span>{props.progress.length}/{AREAS.length}</span><small>Bereiche begonnen</small></div>
+        <div><span>{startedAreas}/{activeAreas.length}</span><small>Bereiche begonnen</small></div>
       </div>
 
       <section className={`weekly-card ${props.weeklyDue ? 'due' : ''}`}>

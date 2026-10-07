@@ -1,5 +1,4 @@
-import { findArea } from '../data'
-import type { CleaningSession, CleaningTask, Progress, WeeklyCheck } from '../types'
+import type { Area, CleaningSession, CleaningTask, Progress, WeeklyCheck } from '../types'
 
 function csvCell(value: unknown) {
   const text = value == null ? '' : String(value)
@@ -12,7 +11,11 @@ export function exportCsv(data: {
   sessions: CleaningSession[]
   tasks: CleaningTask[]
   checks: WeeklyCheck[]
-}) {
+}, findArea: (id: string | null | undefined) => Area | undefined) {
+  const areaName = (id: string | null) => {
+    const area = findArea(id)
+    return area ? `${area.title}${area.subtitle ? ` · ${area.subtitle}` : ''}` : id ?? ''
+  }
   const rows: unknown[][] = [[
     'Typ',
     'Bereich',
@@ -27,7 +30,7 @@ export function exportCsv(data: {
 
   data.progress.forEach((item) => rows.push([
     'Bearbeitungsstand',
-    findArea(item.area_id)?.title ?? item.area_id,
+    areaName(item.area_id),
     item.progress_value,
     item.progress_type,
     item.note,
@@ -36,7 +39,7 @@ export function exportCsv(data: {
 
   data.sessions.forEach((item) => rows.push([
     'Cleaning-Einheit',
-    findArea(item.area_id)?.title ?? item.area_id,
+    areaName(item.area_id),
     item.finished_at,
     `${item.duration_minutes} Minuten`,
     '',
@@ -48,7 +51,7 @@ export function exportCsv(data: {
 
   data.tasks.forEach((item) => rows.push([
     'Aufgabe',
-    findArea(item.area_id)?.title ?? '',
+    areaName(item.area_id),
     item.due_date,
     item.status === 'done' ? 'erledigt' : 'offen',
     item.title,

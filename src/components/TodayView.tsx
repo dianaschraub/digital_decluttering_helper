@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Bell, CalendarPlus, FolderInput, ListPlus, Pause, Play, RotateCcw, Trash2, Zap } from 'lucide-react'
-import { AREAS, destinationsFor } from '../data'
+import { destinationsFor } from '../data'
+import { rhythmLabel } from '../lib/settingsSchema'
+import { useSettings } from '../lib/settingsContext'
 import { backlogDays, formatBacklog, formatProgress, nextProgressLabel } from '../lib/dates'
 import type { Area, CleaningTask, Progress } from '../types'
 import { AreaSign, TimerRing } from './ui'
@@ -9,6 +11,10 @@ const WHERE_TO_WORK: Record<Area['icon'], string> = {
   photos: 'in der Galerie bzw. Fotos-App',
   screenshots: 'im Screenshot-Album',
   downloads: 'im Downloads-Ordner bzw. in der Dateien-App',
+  videos: 'in der Galerie bzw. im Videos-Ordner',
+  desktop: 'auf dem Desktop',
+  documents: 'im Dokumente-Ordner',
+  other: 'im jeweiligen Ordner',
   mail: 'in deinem Mailprogramm',
 }
 
@@ -31,6 +37,8 @@ export function TodayView(props: {
   onAttention: () => void
 }) {
   const { selectedArea, selectedProgress } = props
+  const { activeAreas, destinations } = useSettings()
+  const places = destinationsFor(destinations, selectedArea.kind)
   const isEmail = selectedArea.kind === 'email'
   const timerRef = useRef<HTMLDivElement>(null)
   const [timerVisible, setTimerVisible] = useState(true)
@@ -57,7 +65,7 @@ export function TodayView(props: {
           <span className="focus-text">
             <span className="focus-label">{focusIsSelected ? 'Vorschlag · ausgewählt' : 'Vorschlag'}</span>
             <strong>{props.focusArea.title}</strong>
-            <small>{props.focusArea.subtitle} · {props.focusArea.rhythm}</small>
+            <small>{props.focusArea.subtitle} · {rhythmLabel(props.focusArea.intervalDays)}</small>
           </span>
           {!focusIsSelected && <ArrowRight className="focus-arrow" size={20} />}
         </button>
@@ -80,7 +88,7 @@ export function TodayView(props: {
             <h2>{selectedArea.title} <span>{selectedArea.subtitle}</span></h2>
             <p>{selectedProgress ? `Vollständig bis ${formatProgress(selectedProgress.progress_type, selectedProgress.progress_value)} · ${formatBacklog(backlog)}` : 'Noch kein Stand gespeichert'}</p>
           </div>
-          <select value={selectedArea.id} onChange={(event) => props.onChooseArea(event.target.value)} aria-label="Bereich auswählen">{AREAS.map((area) => <option key={area.id} value={area.id}>{area.title} · {area.subtitle}</option>)}</select>
+          <select value={selectedArea.id} onChange={(event) => props.onChooseArea(event.target.value)} aria-label="Bereich auswählen">{activeAreas.map((area) => <option key={area.id} value={area.id}>{area.title} · {area.subtitle}</option>)}</select>
         </div>
 
         <div className="work-grid">
@@ -109,7 +117,9 @@ export function TodayView(props: {
                 <span className="guide-icon sort"><FolderInput size={18} /></span>
                 <div>
                   <strong>{isEmail ? 'Zum Nachschlagen behalten? Archivieren.' : 'Behalten? An genau einen Ort.'}</strong>
-                  <span className="guide-chips">{destinationsFor(selectedArea.kind).map((destination) => <span key={destination.id} title={destination.note}>{destination.label}</span>)}</span>
+                  {places.length > 0
+                    ? <span className="guide-chips">{places.map((destination) => <span key={destination.id} title={destination.note}>{destination.label}</span>)}</span>
+                    : <small>Lege deine Ablageorte in den Einstellungen fest.</small>}
                 </div>
               </li>
               {isEmail && <li>
@@ -125,7 +135,7 @@ export function TodayView(props: {
                 </div>
               </li>
             </ol>
-            {!isEmail && <p className="small muted guide-note">Die Sicherungs-SSD ist kein Ablageziel. Sie erhält später nur Kopien deiner Hauptablage.</p>}
+            {!isEmail && <p className="small muted guide-note">Eine Sicherungskopie ist kein Ablageort – sie erhält nur Kopien deiner Hauptablage.</p>}
             <button className="button dark full" onClick={props.onFinish}>Einheit abschließen & Stand speichern</button>
           </div>
         </div>

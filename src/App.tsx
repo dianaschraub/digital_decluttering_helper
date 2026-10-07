@@ -44,7 +44,7 @@ function App() {
       onFlowComplete={() => setAuthFlow(null)}
     />
   }
-  return <CleaningApp />
+  return <CleaningApp key={user.id} email={user.email ?? ''} />
 }
 
 export default App

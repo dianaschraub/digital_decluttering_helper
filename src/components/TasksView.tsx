@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { CalendarPlus, Check, ChevronDown, ChevronRight, Paperclip, Plus, X } from 'lucide-react'
-import { findArea } from '../data'
+import { useEffect, useState } from 'react'
+import { CalendarPlus, Check, ChevronDown, ChevronRight, Copy, Paperclip, Plus, Share2, X } from 'lucide-react'
+import { useSettings } from '../lib/settingsContext'
+import { canShareNatively, prepareAttachment } from '../lib/share'
 import { formatDate, todayIso } from '../lib/dates'
 import type { CleaningTask } from '../types'
 
@@ -9,6 +10,7 @@ interface TaskHandlers {
   onDelete: (task: CleaningTask) => void
   onAttachment: (task: CleaningTask) => void
   onCalendar: (task: CleaningTask) => void
+  onShare: (task: CleaningTask) => void
 }
 
 export function TasksView({ openTasks, doneTasks, onNew, ...handlers }: TaskHandlers & {
@@ -17,6 +19,10 @@ export function TasksView({ openTasks, doneTasks, onNew, ...handlers }: TaskHand
   onNew: () => void
 }) {
   const [showDone, setShowDone] = useState(false)
+  // Anhänge offener Aufgaben vorab laden, damit „Teilen“ sie sofort mitgeben kann.
+  useEffect(() => {
+    openTasks.filter((task) => task.attachment_key).slice(0, 10).forEach((task) => { void prepareAttachment(task) })
+  }, [openTasks])
   // Fällige zuerst, dann nach Wiedervorlage, Aufgaben ohne Termin zuletzt.
   const sortedOpen = [...openTasks].sort((a, b) => (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999'))
   return (
@@ -39,7 +45,8 @@ export function TasksView({ openTasks, doneTasks, onNew, ...handlers }: TaskHand
   )
 }
 
-function TaskRow({ task, onToggle, onDelete, onAttachment, onCalendar }: TaskHandlers & { task: CleaningTask }) {
+function TaskRow({ task, onToggle, onDelete, onAttachment, onCalendar, onShare }: TaskHandlers & { task: CleaningTask }) {
+  const { findArea } = useSettings()
   const today = todayIso()
   const open = task.status === 'open'
   const overdue = open && task.due_date && task.due_date < today
@@ -57,7 +64,8 @@ function TaskRow({ task, onToggle, onDelete, onAttachment, onCalendar }: TaskHan
         </div>
       </div>
       <div className="task-actions">
-        {open && <button className="icon-button" onClick={() => onCalendar(task)} title="In Google Kalender eintragen" aria-label="In Google Kalender eintragen"><CalendarPlus size={16} /></button>}
+        {open && <button className="icon-button" onClick={() => onShare(task)} title={canShareNatively() ? 'Teilen, z. B. in Google Notizen' : 'Text kopieren, z. B. für Google Notizen'} aria-label={canShareNatively() ? 'Teilen' : 'Text kopieren'}>{canShareNatively() ? <Share2 size={16} /> : <Copy size={16} />}</button>}
+        {open && <button className="icon-button" onClick={() => onCalendar(task)} title="Als einzelnen Termin in Google Kalender eintragen" aria-label="In Google Kalender eintragen"><CalendarPlus size={16} /></button>}
         <button className="icon-button danger" onClick={() => onDelete(task)} title="Aufgabe löschen" aria-label="Aufgabe löschen"><X size={16} /></button>
       </div>
     </article>

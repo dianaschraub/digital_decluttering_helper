@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { FileDown, Image, Mail, Scan, X } from 'lucide-react'
+import { FileDown, FileText, Folder, Image, Mail, Monitor, Scan, Video, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Area, AreaIconName } from '../types'
 
@@ -8,10 +8,14 @@ const AREA_ICONS: Record<AreaIconName, LucideIcon> = {
   photos: Image,
   screenshots: Scan,
   downloads: FileDown,
+  videos: Video,
+  desktop: Monitor,
+  documents: FileText,
+  other: Folder,
   mail: Mail,
 }
 
-export function AreaSign({ area, size = 'normal' }: { area: Area; size?: 'normal' | 'small' }) {
+export function AreaSign({ area, size = 'normal' }: { area: Pick<Area, 'icon' | 'color'>; size?: 'normal' | 'small' }) {
   const Icon = AREA_ICONS[area.icon]
   return (
     <span className={`area-sign ${size}`} style={{ '--area': area.color } as CSSProperties} aria-hidden="true">

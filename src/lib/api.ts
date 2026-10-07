@@ -1,10 +1,12 @@
 import type {
+  AppData,
   CleaningSession,
   CleaningTask,
   Progress,
   ProgressType,
   SessionCounts,
   TaskDraft,
+  UserSettings,
   WeeklyCheck,
 } from '../types'
 
@@ -35,12 +37,33 @@ async function post<T>(action: string, payload: unknown) {
 
 export async function loadAppData() {
   const response = await fetch(API_URL, { credentials: 'include' })
-  return parseResponse<{
-    progress: Progress[]
-    sessions: CleaningSession[]
-    tasks: CleaningTask[]
-    checks: WeeklyCheck[]
-  }>(response)
+  return parseResponse<AppData>(response)
+}
+
+export async function saveSettings(settings: UserSettings) {
+  const result = await post<{ settings: UserSettings }>('save_settings', { settings })
+  return result.settings
+}
+
+/** Liefert den geheimen Token für das Kalender-Abo; mit `reset` wird der alte Link ungültig. */
+export async function fetchCalendarToken(reset = false) {
+  const result = await post<{ calendarToken: string }>('calendar_link', { reset })
+  return result.calendarToken
+}
+
+export async function deleteAccount() {
+  await post<{ ok: true }>('delete_account', { confirm: 'LÖSCHEN' })
+}
+
+/** Lädt einen Anhang als Datei, etwa um ihn über das Teilen-Menü weiterzugeben. */
+export async function fetchAttachmentFile(task: CleaningTask) {
+  if (!task.attachment_key) return null
+  const url = new URL(API_URL, window.location.origin)
+  url.searchParams.set('attachment', task.attachment_key)
+  const response = await fetch(url, { credentials: 'include' })
+  if (!response.ok) return null
+  const blob = await response.blob()
+  return new File([blob], task.attachment_name ?? 'anhang', { type: task.attachment_mime || blob.type || 'application/octet-stream' })
 }
 
 export async function finishCleaningSession(input: {

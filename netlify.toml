@@ -6,6 +6,12 @@
 [functions]
   node_bundler = "esbuild"
 
+# Hübscher Abo-Link: /kalender/<token>/digital-cleaning.ics
+[[redirects]]
+  from = "/kalender/:token/digital-cleaning.ics"
+  to = "/.netlify/functions/calendar?token=:token"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

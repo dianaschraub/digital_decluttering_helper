@@ -1,29 +1,67 @@
-import type { Area, AreaKind, Destination, Progress } from './types'
+import type { Area, AreaIconName, AreaKind, Destination, Progress, UserSettings } from './types'
 import { backlogDays, daysSince } from './lib/dates'
+import { EMAIL_COLORS, areaType, defaultReminders, makeId } from './lib/settingsSchema'
 
-// `color` ist eine kräftige Grundfarbe; die Oberfläche mischt sie
-// je nach hellem oder dunklem Modus mit dem Hintergrund ab.
-export const AREAS: Area[] = [
-  { id: 'phone-photos', title: 'Bilder', subtitle: 'Handy', group: 'Handy', icon: 'photos', kind: 'files', rhythm: 'monatlich', intervalDays: 30, color: '#5e9b72' },
-  { id: 'phone-screenshots', title: 'Screenshots', subtitle: 'Handy', group: 'Handy', icon: 'screenshots', kind: 'files', rhythm: 'monatlich', intervalDays: 30, color: '#c19a4f' },
-  { id: 'phone-downloads', title: 'Downloads & PDFs', subtitle: 'Handy', group: 'Handy', icon: 'downloads', kind: 'files', rhythm: 'monatlich', intervalDays: 30, color: '#7d74c4' },
-  { id: 'tablet-photos', title: 'Bilder', subtitle: 'Tablet', group: 'Tablet', icon: 'photos', kind: 'files', rhythm: 'monatlich', intervalDays: 30, color: '#5e9b72' },
-  { id: 'tablet-screenshots', title: 'Screenshots', subtitle: 'Tablet', group: 'Tablet', icon: 'screenshots', kind: 'files', rhythm: 'monatlich', intervalDays: 30, color: '#c19a4f' },
-  { id: 'tablet-downloads', title: 'Downloads & PDFs', subtitle: 'Tablet', group: 'Tablet', icon: 'downloads', kind: 'files', rhythm: 'monatlich', intervalDays: 30, color: '#7d74c4' },
-  { id: 'essen-email', title: 'Essener Postfach', subtitle: 'Musikschule', group: 'E-Mail', icon: 'mail', kind: 'email', rhythm: 'wöchentlich', intervalDays: 7, color: '#4f8bb8' },
-  { id: 'webde-email', title: 'WEB.DE-Postfach', subtitle: 'Privat', group: 'E-Mail', icon: 'mail', kind: 'email', rhythm: 'alle 14 Tage', intervalDays: 14, color: '#c46b78' },
+// ---------- Vorlagen für die Einrichtung ----------
+
+export interface DevicePreset {
+  id: string
+  label: string
+  /** Inhalte, die bei diesem Gerät angeboten werden; die ersten `defaults` sind vorausgewählt. */
+  contents: AreaIconName[]
+  defaults: AreaIconName[]
+}
+
+export const DEVICE_PRESETS: DevicePreset[] = [
+  { id: 'phone', label: 'Handy', contents: ['photos', 'screenshots', 'downloads', 'videos'], defaults: ['photos', 'screenshots', 'downloads'] },
+  { id: 'tablet', label: 'Tablet', contents: ['photos', 'screenshots', 'downloads', 'videos'], defaults: ['photos', 'screenshots', 'downloads'] },
+  { id: 'computer', label: 'Computer / Laptop', contents: ['downloads', 'desktop', 'documents', 'photos', 'screenshots', 'videos'], defaults: ['downloads', 'desktop', 'documents'] },
 ]
 
-export const DESTINATIONS: Destination[] = [
-  { id: 'mail-archive', label: 'Im Postfach archivieren', note: 'E-Mail ohne offene Aufgabe', kinds: ['email'] },
-  { id: 'private-cloud', label: 'Private Cloud', note: 'private Hauptablage', kinds: ['files', 'email'] },
-  { id: 'terabox-work', label: 'TeraBox', note: 'Arbeit', kinds: ['files'] },
-  { id: 'spacebite-work', label: 'Space Bite', note: 'Arbeit', kinds: ['files'] },
-  { id: 'photo-archive', label: 'SSD Fotoarchiv', note: 'alte Fotos', kinds: ['files'] },
+export const CUSTOM_DEVICE_CONTENTS: AreaIconName[] = ['photos', 'screenshots', 'downloads', 'videos', 'desktop', 'documents', 'other']
+
+export const EMAIL_SUGGESTIONS = ['Gmail', 'GMX', 'WEB.DE', 'Outlook', 'iCloud Mail', 'T-Online', 'Arbeit']
+
+export const DESTINATION_PRESETS: { label: string; note: string; kinds: AreaKind[] }[] = [
+  { label: 'Google Drive', note: 'Cloud', kinds: ['files', 'email'] },
+  { label: 'OneDrive', note: 'Cloud', kinds: ['files', 'email'] },
+  { label: 'iCloud Drive', note: 'Cloud', kinds: ['files', 'email'] },
+  { label: 'Dropbox', note: 'Cloud', kinds: ['files', 'email'] },
+  { label: 'Ordner auf dem Computer', note: 'lokal', kinds: ['files', 'email'] },
+  { label: 'Externe Festplatte', note: 'Archiv', kinds: ['files'] },
+  { label: 'USB-Stick', note: 'Archiv', kinds: ['files'] },
+  { label: 'NAS', note: 'Netzwerkspeicher', kinds: ['files'] },
 ]
 
-export function destinationsFor(kind: AreaKind) {
-  return DESTINATIONS.filter((destination) => destination.kinds.includes(kind))
+export const MAIL_ARCHIVE: Omit<Destination, 'id'> = { label: 'Im Postfach archivieren', note: 'E-Mail ohne offene Aufgabe', kinds: ['email'] }
+
+export interface OnboardingChoice {
+  devices: { label: string; contents: AreaIconName[] }[]
+  emails: { name: string; intervalDays: number }[]
+  destinations: { label: string; note: string; kinds: AreaKind[] }[]
+  timezone: string
+}
+
+export function buildSettings(choice: OnboardingChoice): UserSettings {
+  const areas: Area[] = []
+  for (const device of choice.devices) {
+    for (const icon of device.contents) {
+      const type = areaType(icon)
+      areas.push({ id: makeId(icon), title: type.label, subtitle: device.label, group: device.label, icon, kind: 'files', intervalDays: 30, color: type.color, status: 'active' })
+    }
+  }
+  choice.emails.forEach((email, index) => {
+    areas.push({ id: makeId('mail'), title: email.name, subtitle: 'E-Mail', group: 'E-Mail', icon: 'mail', kind: 'email', intervalDays: email.intervalDays, color: EMAIL_COLORS[index % EMAIL_COLORS.length], status: 'active' })
+  })
+  const destinations: Destination[] = choice.destinations.map((destination) => ({ id: makeId('ziel'), ...destination }))
+  if (choice.emails.length) destinations.unshift({ id: makeId('ziel'), ...MAIL_ARCHIVE })
+  return { areas, destinations, reminders: defaultReminders(choice.timezone) }
+}
+
+// ---------- Hilfen für die gespeicherten Einstellungen ----------
+
+export function destinationsFor(destinations: Destination[], kind: AreaKind) {
+  return destinations.filter((destination) => destination.kinds.includes(kind))
 }
 
 export const MEMOS = {
@@ -42,17 +80,13 @@ export const MEMOS = {
   ],
 }
 
-export function findArea(areaId: string | null | undefined) {
-  return AREAS.find((area) => area.id === areaId)
-}
-
 /**
- * Schlägt den Bereich vor, der gemessen an seinem eigenen Rhythmus am
+ * Schlägt den aktiven Bereich vor, der gemessen an seinem eigenen Rhythmus am
  * stärksten überfällig ist. Nie bearbeitete Bereiche kommen zuerst;
  * bei Gleichstand entscheidet der größere Rückstand.
  */
-export function suggestArea(progress: Progress[]) {
-  const scored = AREAS.map((area, index) => {
+export function suggestArea(areas: Area[], progress: Progress[]) {
+  const scored = areas.map((area, index) => {
     const item = progress.find((entry) => entry.area_id === area.id)
     if (!item) return { area, score: Infinity, backlog: Infinity, index }
     return {
@@ -63,5 +97,5 @@ export function suggestArea(progress: Progress[]) {
     }
   })
   scored.sort((a, b) => (b.score - a.score) || (b.backlog - a.backlog) || (a.index - b.index))
-  return scored[0].area
+  return scored[0]?.area
 }

@@ -1,120 +1,58 @@
-# Digital Cleaning – Netlify & Google Sheet
+# Digital Cleaning
 
-Eine private, mobile Web-App, mit der du Bilder, Screenshots, Downloads und zwei E-Mail-Postfächer in kleinen 20-Minuten-Einheiten aufräumst. Der Bearbeitungsstand jedes Bereichs wird zentral in einem Google Sheet gespeichert und ist auf Handy und Tablet identisch.
+Eine mobile Web-App, mit der man Fotos, Screenshots, Downloads, Ordner und E-Mail-Postfächer in kleinen 20-Minuten-Einheiten aufräumt – und dauerhaft in Ordnung hält. Jede Person legt sich ein eigenes Konto an und richtet ihre eigenen Geräte, Postfächer und Ablageorte ein.
 
 ## Funktionen
 
-- acht getrennte Bereiche für Handy, Tablet, Essener Postfach und WEB.DE
+- **Eigenes Konto** für jede Person, Daten strikt getrennt
+- **Einrichtung beim ersten Start:** Geräte (Handy, Tablet, Computer oder eigene), was dort aufgeräumt wird, E-Mail-Postfächer und Ablageorte (Google Drive, OneDrive, iCloud, externe Festplatte, eigene …)
+- **Einstellungen:** Bereiche hinzufügen, umbenennen, pausieren, entfernen und ihren Rhythmus festlegen; Ablageorte für Dateien und/oder E-Mails pflegen
 - 20-Minuten-Timer mit Fortschrittsring, der auch beim Wechsel in die Foto- oder Mail-App und nach einem Neuladen weiterläuft
-- Bearbeitung von den ältesten Dateien nach vorn, mit sichtbarem Rückstand je Bereich
-- Vorschlag des Bereichs, der gemessen an seinem Rhythmus am stärksten überfällig ist
-- Spickkarte mit der Entscheidungsregel (löschen, einsortieren, bei E-Mails sofort erledigen, nächste Handlung) und deinen Ablageorten – du arbeitest direkt in der Foto-, Datei- oder Mail-App und musst nichts mitklicken
-- **Nächste Handlung** legt eine echte Aufgabe mit Wiedervorlage an
-- nach jeder Einheit zeigt die App, welcher Zeitraum geschafft ist (z. B. „3 Monate aufgeräumt“); grobe Zahlen zu Gelöschtem und Einsortiertem sind freiwillig
-- eigener Monats- oder Tagesstand je Bereich
-- Aufgaben und Wiedervorlagen mit Erledigt-Schaltfläche
-- private Bild- und Dateianhänge bis 4 MB
-- Verlauf, Wochencheck, Merkmemos und CSV-Sicherung
-- vorbereitete Übergabe an Google Kalender
-- privater Zugang über Netlify Identity
-- heller und dunkler Modus (folgt der Systemeinstellung)
-- installierbar auf dem Startbildschirm (Android und iOS)
+- Spickkarte mit der Entscheidungsregel und den eigenen Ablageorten – gearbeitet wird direkt in der Foto-, Datei- oder Mail-App, ohne Mitklicken
+- nach jeder Einheit zeigt die App den geschafften Zeitraum, z. B. „3 Monate aufgeräumt“; grobe Zahlen sind freiwillig
+- **Nächste Handlungen** als Aufgaben mit Wiedervorlage und Anhang (bis 4 MB)
+- **Teilen-Knopf** bei Aufgaben – etwa in Google Notizen (Keep); am Computer wird der Text kopiert
+- **Kalender-Abo:** persönlicher Link für Google Kalender, Apple Kalender oder Outlook mit geplanten Aufräum-Terminen (Wochentage, Uhrzeit, wöchentlich / alle 2 Wochen / monatlich) und Aufgaben mit Wiedervorlage; erledigte Aufgaben verschwinden beim nächsten Abgleich
+- **Fester Serientermin** als einfache Alternative (Google-Kalender-Link oder `.ics`-Datei)
+- Verlauf, Wochencheck, CSV-Sicherung
+- Konto samt aller Daten jederzeit selbst löschbar
+- heller und dunkler Modus, installierbar auf dem Startbildschirm
 
 ## Wo die Daten liegen
 
 | Bestandteil | Speicherort |
 |---|---|
-| Bearbeitungsstände | Google Sheet, Tab `progress` |
-| Cleaning-Einheiten | Google Sheet, Tab `sessions` |
-| Aufgaben und Wiedervorlagen | Google Sheet, Tab `tasks` |
-| Wochenchecks | Google Sheet, Tab `weekly_checks` |
-| Datei- und Bildanhänge | privater Netlify-Blob-Speicher |
-| Programmcode | GitHub |
-| Website | Netlify |
+| Einstellungen, Stände, Einheiten, Aufgaben, Wochenchecks | Netlify Blobs, Store `user-data`, ein Dokument pro Person (`users/<Identity-ID>`) |
+| Anhänge | Netlify Blobs, Store `task-attachments` (`<Identity-ID>/<Aufgaben-ID>`) |
+| Kalender-Abo-Links | Netlify Blobs, Store `user-data` (`calendar/<geheimer Schlüssel>`) |
+| Konten | Netlify Identity |
 
-Die vier Tabellenblätter und ihre Spaltenüberschriften werden beim ersten erfolgreichen Zugriff automatisch angelegt. Für Anhänge wird Netlify Blobs verwendet, weil Dienstkonten in einem persönlichen Google Drive nicht in jedem Kontotyp zuverlässig eigene Dateien speichern können. Die Links zwischen Aufgabe und Anhang stehen weiterhin im Google Sheet.
+Eine Google-Cloud-Einrichtung ist nicht mehr nötig.
 
-## 1. GitHub-Repository anlegen
+## Einrichtung bei Netlify
 
-Der Code liegt im Repository `dianaschraub/digital_decluttering_helper`. Für ein neues, leeres Repository geht das Hochladen so:
+1. Bei Netlify **Add new project → Import an existing project** wählen und dieses Repository verbinden. Build-Einstellungen stehen in `netlify.toml`.
+2. **Identity → Enable Identity** öffnen.
+3. Unter **Registration preferences** festlegen, wer Konten anlegen darf:
+   - **Open** – jede Person kann sich in der App selbst registrieren (empfohlen, wenn andere die App nutzen sollen)
+   - **Invite only** – nur eingeladene Personen (**Identity → Invite users**)
+4. Optional unter **Project configuration → Environment variables**:
 
-```bash
-git init
-git add .
-git commit -m "Digital Cleaning mit Netlify und Google Sheet"
-git branch -M main
-git remote add origin https://github.com/dianaschraub/digital_decluttering_helper.git
-git push -u origin main
-```
-
-## 2. Google Sheet vorbereiten
-
-1. In Google Sheets eine **leere Tabelle** anlegen, beispielsweise `Digital Cleaning Daten`.
-2. Aus der Tabellenadresse die ID kopieren. Bei
-   `https://docs.google.com/spreadsheets/d/ABC123/edit` ist `ABC123` die Sheet-ID.
-3. Noch keine Tabellenblätter oder Spalten anlegen; das erledigt die App automatisch.
-
-## 3. Google-Dienstkonto erstellen
-
-1. In der [Google Cloud Console](https://console.cloud.google.com/) ein Projekt auswählen oder anlegen.
-2. Unter **APIs & Dienste → Bibliothek** die **Google Sheets API** aktivieren.
-3. Unter **IAM & Verwaltung → Dienstkonten** ein Dienstkonto anlegen.
-4. Für dieses Dienstkonto einen JSON-Schlüssel erstellen und herunterladen.
-5. Aus der JSON-Datei werden später nur diese beiden Werte benötigt:
-   - `client_email`
-   - `private_key`
-6. Das zuvor angelegte Google Sheet über **Teilen** für die `client_email` des Dienstkontos als **Bearbeiter** freigeben.
-
-Die JSON-Datei und der private Schlüssel dürfen niemals in GitHub hochgeladen werden.
-
-## 4. Mit Netlify verbinden
-
-1. Bei Netlify **Add new project → Import an existing project** auswählen.
-2. Das GitHub-Repository verbinden.
-3. Netlify liest `netlify.toml` automatisch. Die Werte sind bereits eingetragen:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-   - Functions directory: `netlify/functions`
-4. Unter **Project configuration → Environment variables** diese Werte anlegen:
-
-| Variable | Wert |
+| Variable | Zweck |
 |---|---|
-| `GOOGLE_SHEET_ID` | ID der Google-Tabelle |
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | `client_email` aus der JSON-Datei |
-| `GOOGLE_PRIVATE_KEY` | vollständiger `private_key` einschließlich BEGIN/END-Zeilen |
-| `ALLOWED_EMAIL` | deine E-Mail-Adresse für Netlify Identity (**Pflicht**) |
+| `ALLOWED_EMAILS` | Kommagetrennte Liste von Adressen, die die App nutzen dürfen. Leer lassen = alle registrierten Konten. |
+| `LEGACY_IMPORT_EMAIL` | Nur für den Umstieg von der früheren Google-Sheet-Version, siehe unten. |
 
-Beim Private Key dürfen echte Zeilenumbrüche oder die Zeichenfolge `\n` verwendet werden. Keine dieser Variablen in `netlify.toml` oder GitHub eintragen.
+Bei offener Registrierung verschickt Netlify eine Bestätigungs-E-Mail; erst danach ist das Konto aktiv.
 
-## 5. Privaten Zugang einrichten
+## Umstieg von der früheren Google-Sheet-Version
 
-1. Im Netlify-Projekt **Identity → Enable Identity** öffnen.
-2. Unter den Registrierungseinstellungen **Invite only** wählen.
-3. Unter **Identity → Users → Invite users** deine eigene E-Mail-Adresse einladen.
-4. Die Einladungs-E-Mail öffnen und in der App ein persönliches Passwort festlegen.
+Die erste Version speicherte alles in einem Google Sheet. Beim ersten Login übernimmt die App diese Daten **einmalig** in den neuen Speicher – samt der ursprünglichen acht Bereiche und Ablageorte –, wenn:
 
-Die Netlify-Funktion akzeptiert zusätzlich nur die Adresse aus `ALLOWED_EMAIL`. Selbst wenn versehentlich ein zweites Identity-Konto angelegt würde, könnte dieses nicht auf die Tabelle oder Anhänge zugreifen. Ist `ALLOWED_EMAIL` nicht gesetzt, verweigert die Funktion jeden Zugriff.
+- `GOOGLE_SHEET_ID`, `GOOGLE_SERVICE_ACCOUNT_EMAIL` und `GOOGLE_PRIVATE_KEY` noch gesetzt sind und
+- die angemeldete Adresse `LEGACY_IMPORT_EMAIL` entspricht (ersatzweise der alten Variable `ALLOWED_EMAIL`).
 
-Die Daten im Sheet hängen nicht an der internen Netlify-Benutzer-ID. Wird dein Identity-Konto gelöscht und neu eingeladen, bleiben alle bisherigen Stände, Aufgaben und Anhänge sichtbar.
-
-## 6. Erster Start
-
-Nach dem ersten Login lädt die App die Daten. Dabei entstehen im leeren Google Sheet automatisch:
-
-```text
-progress
-sessions
-tasks
-weekly_checks
-```
-
-Falls die App meldet, dass der Google-Sheet-Speicher noch nicht eingerichtet ist, prüfe:
-
-- Ist die Google Sheets API aktiviert?
-- Ist das Sheet für die Dienstkonto-E-Mail als Bearbeiter freigegeben?
-- Stimmt `GOOGLE_SHEET_ID`?
-- Wurde der vollständige Private Key bei Netlify eingetragen?
-- Wurde nach Änderungen an den Variablen ein neuer Deploy gestartet?
+Der Import liest das Sheet nur, er verändert es nicht. Er läuft genau einmal. Danach können die Google-Variablen und `ALLOWED_EMAIL` gelöscht werden. **Wichtig:** `ALLOWED_EMAIL` beschränkt den Zugang nicht mehr – dafür gibt es jetzt `ALLOWED_EMAILS` (mit „S“).
 
 ## Lokal testen
 
@@ -122,56 +60,51 @@ Node.js 20 oder neuer wird benötigt. Netlify Dev stellt Identity, Functions und
 
 ```bash
 npm install
-cp .env.example .env
 npm run dev
 ```
 
-Die Werte in `.env` werden nicht nach GitHub hochgeladen. Identity funktioniert vollständig erst, nachdem das Projekt einmal mit Netlify verbunden und Identity dort aktiviert wurde.
-
 ## Datenschutz und Sicherheit
 
-- Google-Zugangsdaten werden nur serverseitig in Netlify Functions verwendet.
-- Der Browser erhält weder den Private Key noch direkten Schreibzugriff auf das Google Sheet.
-- Jede Funktionsanfrage wird über Netlify Identity geprüft.
-- `ALLOWED_EMAIL` ist Pflicht und beschränkt den Zugriff auf genau ein Konto.
+- Jede Anfrage wird über Netlify Identity geprüft; jede Person sieht und ändert ausschließlich ihr eigenes Datendokument und ihre eigenen Anhänge.
+- Gleichzeitige Änderungen (z. B. Handy und Tablet) werden sicher zusammengeführt, statt sich zu überschreiben.
+- Der Kalender-Abo-Link enthält einen zufälligen, geheimen Schlüssel. Kalender-Apps können sich nicht anmelden, daher ersetzt dieser Schlüssel das Passwort. In den Einstellungen lässt er sich jederzeit erneuern; der alte Link funktioniert dann nicht mehr.
+- „Konto und alle Daten löschen“ entfernt Datendokument, Anhänge, Kalender-Link und das Identity-Konto.
+- Anhänge werden mit `Content-Disposition: attachment` und `nosniff` ausgeliefert, höchstens 4 MB.
 - Schriften werden mit der App ausgeliefert; es gibt keine Verbindung zu Google Fonts.
-- Anhänge liegen in einem privaten Store und werden nur nach erfolgreicher Anmeldung ausgegeben.
-- Dateien werden beim Herunterladen mit `Content-Disposition: attachment` und `nosniff` ausgeliefert.
-- Die App akzeptiert Anhänge bis 4 MB. Das liegt unter Netlifys effektiver Grenze für binäre Function-Uploads.
 
-Bei beruflichen Dokumenten mit Schüler- oder Personendaten muss unabhängig von der technischen Absicherung geprüft werden, ob die Musikschule diese externe Speicherung erlaubt.
+**Wenn andere die App nutzen:** Wer in Deutschland eine Website für andere betreibt, braucht in der Regel ein Impressum und eine Datenschutzerklärung (u. a. zu Netlify als Hoster und Auftragsverarbeiter). Das ist keine technische, sondern eine rechtliche Frage und sollte vor dem Teilen des Links geklärt werden.
 
-## Wichtige Funktionsgrenze
+## Funktionsgrenzen
 
-Eine Website darf aus Sicherheitsgründen nicht selbstständig deine Handyfotos, Downloads oder E-Mail-Postfächer durchsuchen und löschen. Digital Cleaning begleitet deshalb den Ablauf und speichert deinen Stand; die eigentliche Entscheidung führst du in der jeweiligen Foto-, Datei- oder E-Mail-App aus.
-
-Die Kalender-Schaltfläche öffnet nur einen vorbereiteten Google-Kalender-Termin. Die App erhält keinen dauerhaften Kalenderzugriff.
+- Eine Website darf aus Sicherheitsgründen nicht selbstständig Fotos, Dateien oder Postfächer durchsuchen und löschen. Digital Cleaning begleitet den Ablauf und speichert den Stand; gearbeitet wird in der jeweiligen App.
+- Google Kalender aktualisiert abonnierte Kalender nur alle paar Stunden. Abonnieren lässt sich ein Kalender per Link nur im Browser (calendar.google.com), nicht in der Handy-App.
+- Google Notizen bietet für private Konten keine Schnittstelle; der Teilen-Knopf übergibt die Aufgabe über das Teilen-Menü des Geräts.
 
 ## Projektstruktur
 
 ```text
 src/
-  App.tsx                 Anmeldeprüfung
-  components/             Ansichten (Heute, Bereiche, Aufgaben, Verlauf), Login, Bausteine
-  hooks/useCleaningSession.ts  Timer und Zähler, im Browser zwischengespeichert
-  data.ts                 Bereiche, Rhythmen, Ablageziele, Merkmemos und Vorschlag
-  types.ts                gemeinsame Datentypen
-  lib/dates.ts            Datumsfunktionen in lokaler Zeit
-  lib/api.ts              Aufrufe der geschützten Netlify-Funktion
-  lib/auth.ts             Netlify-Identity-Anmeldung
-  lib/calendar.ts         Google-Kalender-Übergabe
-  lib/export.ts           CSV-Sicherung
+  App.tsx                      Anmeldeprüfung
+  components/                  Ansichten, Einrichtung (Onboarding), Einstellungen, Login, Bausteine
+  hooks/useCleaningSession.ts  Timer, im Browser zwischengespeichert
+  data.ts                      Vorlagen für die Einrichtung, Vorschlag, Merkmemos
+  types.ts                     gemeinsame Datentypen
+  lib/settingsSchema.ts        Regeln für Bereiche, Ablageorte, Erinnerungen (App + Server)
+  lib/schedule.ts              Terminplanung für Erinnerungen (App + Server)
+  lib/ics.ts                   Kalenderdateien (iCalendar)
+  lib/settingsContext.tsx      Zugriff auf die Einstellungen in allen Ansichten
+  lib/calendar.ts              Google-Kalender-Links, Serientermin, Abo-Link
+  lib/share.ts                 Teilen von Aufgaben
+  lib/dates.ts                 Datumsfunktionen in lokaler Zeit
+  lib/api.ts                   Aufrufe der geschützten Netlify-Funktion
 netlify/functions/
-  app-data.ts             geschützte API und Anhangspeicher
-  _shared/sheets.ts       Google-Sheet-Zugriff und Tabellenaufbau
-netlify.toml              Build, Functions und Sicherheitsheader
+  app-data.ts                  geschützte API
+  calendar.ts                  Kalender-Abo (über geheimen Link)
+  _shared/store.ts             Speicher pro Person, Kalender-Links, Löschen
+  _shared/feed.ts              Inhalt des Kalender-Abos
+  _shared/legacySheet.ts       einmaliger Import aus der früheren Google-Sheet-Version
+netlify.toml                   Build, Weiterleitungen und Sicherheitsheader
 ```
-
-## Anpassen
-
-- **Bereiche, Rhythmus und Farben:** `src/data.ts`, Liste `AREAS`. `intervalDays` steuert, wann ein Bereich als überfällig gilt.
-- **Ablageziele:** `src/data.ts`, Liste `DESTINATIONS`. Über `kinds` legst du fest, ob ein Ziel bei Dateien (`files`), E-Mails (`email`) oder beiden erscheint.
-- **App-Symbol:** `public/icon.svg`; die PNG-Varianten (`icon-192.png`, `icon-512.png`, `apple-touch-icon.png`) bei Änderungen neu exportieren.
 
 ## Build prüfen
 

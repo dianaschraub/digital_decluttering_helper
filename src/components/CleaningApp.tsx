@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CircleAlert, Cloud, History, LayoutGrid, ListChecks, LoaderCircle, LogOut, Timer } from 'lucide-react'
-import { AREAS, MEMOS, findArea, suggestArea } from '../data'
-import { createTask, completeTask, deleteTask, finishCleaningSession, loadAppData, openAttachment, saveWeeklyCheck } from '../lib/api'
+import { CircleAlert, Cloud, History, LayoutGrid, ListChecks, LoaderCircle, Settings, Timer } from 'lucide-react'
+import { MEMOS, suggestArea } from '../data'
+import { createTask, completeTask, deleteAccount, deleteTask, fetchCalendarToken, finishCleaningSession, loadAppData, openAttachment, saveSettings, saveWeeklyCheck } from '../lib/api'
 import { logout } from '../lib/auth'
 import { openCleaningCalendar, openTaskCalendar } from '../lib/calendar'
 import { coveredPeriod, currentMonthIso, progressBoundary, todayIso } from '../lib/dates'
 import type { CoveredPeriod } from '../lib/dates'
 import { exportCsv } from '../lib/export'
 import { formatClock, useCleaningSession } from '../hooks/useCleaningSession'
-import type { AppView, CleaningSession, CleaningTask, Progress, ProgressType, SyncState, TaskDraft, WeeklyCheck } from '../types'
+import { SettingsProvider, useSettings } from '../lib/settingsContext'
+import { shareTask } from '../lib/share'
+import type { AppData, AppView, CleaningSession, CleaningTask, Progress, ProgressType, SyncState, TaskDraft, UserSettings, WeeklyCheck } from '../types'
+import { Onboarding } from './Onboarding'
+import { SettingsView } from './SettingsView'
 import { AreasView } from './AreasView'
 import { HistoryView } from './HistoryView'
 import { TasksView } from './TasksView'
@@ -19,13 +23,58 @@ const EMPTY_TASK: TaskDraft = { title: '', dueDate: '', areaId: '', file: null }
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 const BASE_TITLE = 'Digital Cleaning'
 
-export function CleaningApp() {
+/** Lädt die Daten und entscheidet: Einrichtung beim ersten Start oder die App selbst. */
+export function CleaningApp({ email }: { email: string }) {
+  const [data, setData] = useState<AppData | null>(null)
+  const [loadError, setLoadError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  useEffect(() => {
+    loadAppData().then(setData).catch((caught: Error) => setLoadError(caught.message))
+  }, [])
+
+  async function completeOnboarding(settings: UserSettings) {
+    setSaving(true)
+    setSaveError('')
+    try {
+      const saved = await saveSettings(settings)
+      setData((current) => current && { ...current, settings: saved })
+    } catch (caught) {
+      setSaveError(caught instanceof Error ? caught.message : 'Die Einrichtung konnte nicht gespeichert werden.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loadError) return <CenteredMessage title="Das hat nicht geklappt" text={`${loadError} Lade die Seite neu, um es noch einmal zu versuchen.`} />
+  if (!data) return <CenteredMessage title="Digital Cleaning" text="Deine Daten werden geladen …" />
+  if (!data.settings) return <Onboarding onDone={completeOnboarding} busy={saving} error={saveError} />
+  return (
+    <SettingsProvider settings={data.settings}>
+      <Workspace
+        initial={data}
+        email={email}
+        settings={data.settings}
+        onSettingsSaved={(settings) => setData((current) => current && { ...current, settings })}
+      />
+    </SettingsProvider>
+  )
+}
+
+function Workspace({ initial, email, settings, onSettingsSaved }: {
+  initial: AppData
+  email: string
+  settings: UserSettings
+  onSettingsSaved: (settings: UserSettings) => void
+}) {
+  const { activeAreas, findArea } = useSettings()
   const [view, setView] = useState<AppView>('today')
-  const [progress, setProgress] = useState<Progress[]>([])
-  const [sessions, setSessions] = useState<CleaningSession[]>([])
-  const [tasks, setTasks] = useState<CleaningTask[]>([])
-  const [checks, setChecks] = useState<WeeklyCheck[]>([])
-  const [loading, setLoading] = useState(true)
+  const [progress, setProgress] = useState<Progress[]>(initial.progress)
+  const [sessions, setSessions] = useState<CleaningSession[]>(initial.sessions)
+  const [tasks, setTasks] = useState<CleaningTask[]>(initial.tasks)
+  const [checks, setChecks] = useState<WeeklyCheck[]>(initial.checks)
+  const [calendarToken, setCalendarToken] = useState<string | null>(initial.calendarToken)
   const [sync, setSync] = useState<SyncState>('saved')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -44,33 +93,27 @@ export function CleaningApp() {
   const [busy, setBusy] = useState(false)
   const [weeklyNote, setWeeklyNote] = useState('')
 
-  const session = useCleaningSession(AREAS[0].id, (id) => Boolean(findArea(id)), () => {
+  const isActiveArea = (id: string) => activeAreas.some((area) => area.id === id)
+  const session = useCleaningSession(activeAreas[0].id, isActiveArea, () => {
     vibrate([200, 100, 200, 100, 400])
     setTimeUp(true)
     setNotice('Die 20 Minuten sind geschafft. Speichere jetzt deinen Stand.')
     setFinishRequested(true)
   })
 
-  const selectedArea = findArea(session.areaId) ?? AREAS[0]
+  const selectedArea = activeAreas.find((area) => area.id === session.areaId) ?? activeAreas[0]
   const selectedProgress = progress.find((item) => item.area_id === selectedArea.id)
   const openTasks = tasks.filter((task) => task.status === 'open')
   const doneTasks = tasks.filter((task) => task.status === 'done')
   const today = todayIso()
   const dueTasks = openTasks.filter((task) => task.due_date && task.due_date <= today)
   const weeklyDue = !checks[0] || Date.now() - new Date(checks[0].checked_at).getTime() > WEEK_MS
-  const focusArea = useMemo(() => suggestArea(progress), [progress])
+  const focusArea = useMemo(() => suggestArea(activeAreas, progress) ?? activeAreas[0], [activeAreas, progress])
 
+  // Wurde der laufende Bereich in den Einstellungen pausiert oder entfernt, zum ersten aktiven wechseln.
   useEffect(() => {
-    loadAppData()
-      .then((data) => {
-        setProgress(data.progress)
-        setSessions(data.sessions)
-        setTasks(data.tasks)
-        setChecks(data.checks)
-      })
-      .catch((caught: Error) => { setError(caught.message); setSync('error') })
-      .finally(() => setLoading(false))
-  }, [])
+    if (!isActiveArea(session.areaId)) session.switchArea(activeAreas[0].id)
+  })
 
   useEffect(() => {
     if (!notice) return
@@ -96,7 +139,7 @@ export function CleaningApp() {
   // Ist die Zeit abgelaufen, während die App geschlossen war, öffnet sich der
   // Abschlussdialog, sobald die Daten geladen sind.
   useEffect(() => {
-    if (!finishRequested || loading) return
+    if (!finishRequested) return
     setFinishRequested(false)
     openFinish()
   })
@@ -205,7 +248,42 @@ export function CleaningApp() {
     setNotice('Wochencheck erledigt.')
   }
 
-  if (loading) return <CenteredMessage title="Digital Cleaning" text="Deine Daten werden geladen …" />
+  async function saveSettingsDraft(next: UserSettings) {
+    setBusy(true)
+    const saved = await withSync(() => saveSettings(next), 'Die Einstellungen konnten nicht gespeichert werden.')
+    setBusy(false)
+    if (!saved) return false
+    onSettingsSaved(saved)
+    setNotice('Einstellungen gespeichert.')
+    return true
+  }
+
+  async function requestCalendarToken(reset: boolean) {
+    setBusy(true)
+    const token = await withSync(() => fetchCalendarToken(reset), 'Der Abo-Link konnte nicht erstellt werden.')
+    setBusy(false)
+    if (!token) return
+    setCalendarToken(token)
+    setNotice(reset ? 'Neuer Abo-Link erstellt. Bitte abonniere den Kalender neu.' : 'Abo-Link erstellt.')
+  }
+
+  async function removeAccount() {
+    const answer = window.prompt('Damit werden dein Konto, alle Bereiche, Stände, Aufgaben und Anhänge endgültig gelöscht. Tippe LÖSCHEN zur Bestätigung.')
+    if (answer?.trim().toUpperCase() !== 'LÖSCHEN') return
+    setBusy(true)
+    const done = await withSync(async () => { await deleteAccount(); return true }, 'Das Konto konnte nicht gelöscht werden.')
+    setBusy(false)
+    if (!done) return
+    try { localStorage.clear() } catch { /* egal */ }
+    await logout().catch(() => undefined)
+    window.location.reload()
+  }
+
+  async function share(task: CleaningTask) {
+    const result = await shareTask(task, findArea(task.area_id))
+    if (result === 'copied') setNotice('Text kopiert – füge ihn in Google Notizen oder eine andere App ein.')
+    if (result === 'failed') setError('Teilen ist auf diesem Gerät nicht möglich.')
+  }
 
   return (
     <div className="app-shell">
@@ -213,7 +291,7 @@ export function CleaningApp() {
         <button className="brand-button" onClick={() => setView('today')}><BrandMark size="small" /><span>Digital Cleaning</span></button>
         <div className="top-actions">
           <SyncBadge state={sync} />
-          <button className="icon-button" title="Abmelden" aria-label="Abmelden" onClick={() => logout()}><LogOut size={17} /></button>
+          <button className={`icon-button ${view === 'settings' ? 'active' : ''}`} title="Einstellungen" aria-label="Einstellungen" onClick={() => setView('settings')}><Settings size={17} /></button>
         </div>
       </header>
 
@@ -243,7 +321,7 @@ export function CleaningApp() {
           onAttention={() => setView(dueTasks.length > 0 ? 'tasks' : 'history')}
         />}
 
-        {view === 'areas' && <AreasView progress={progress} selectedAreaId={selectedArea.id} onChoose={chooseArea} />}
+        {view === 'areas' && <AreasView progress={progress} selectedAreaId={selectedArea.id} onChoose={chooseArea} onSettings={() => setView('settings')} />}
 
         {view === 'tasks' && <TasksView
           openTasks={openTasks}
@@ -253,6 +331,7 @@ export function CleaningApp() {
           onDelete={removeTask}
           onAttachment={openAttachment}
           onCalendar={openTaskCalendar}
+          onShare={share}
         />}
 
         {view === 'history' && <HistoryView
@@ -264,7 +343,20 @@ export function CleaningApp() {
           busy={busy}
           onWeeklyNote={setWeeklyNote}
           onWeeklyDone={finishWeeklyCheck}
-          onExport={() => exportCsv({ progress, sessions, tasks, checks })}
+          onExport={() => exportCsv({ progress, sessions, tasks, checks }, findArea)}
+        />}
+
+        {view === 'settings' && <SettingsView
+          settings={settings}
+          progress={progress}
+          email={email}
+          calendarToken={calendarToken}
+          busy={busy}
+          onSave={saveSettingsDraft}
+          onCalendarToken={requestCalendarToken}
+          onNotice={setNotice}
+          onLogout={() => { logout().catch(() => undefined) }}
+          onDeleteAccount={removeAccount}
         />}
       </main>
 
@@ -306,7 +398,7 @@ export function CleaningApp() {
         <form onSubmit={saveTask} className="stack-form">
           <label>Was ist die nächste konkrete Handlung?<input value={taskDraft.title} onChange={(event) => setTaskDraft((draft) => ({ ...draft, title: event.target.value }))} placeholder="z. B. Vertrag prüfen und antworten" required autoFocus /></label>
           <label>Wiedervorlage <span className="optional">optional</span><input type="date" value={taskDraft.dueDate} onChange={(event) => setTaskDraft((draft) => ({ ...draft, dueDate: event.target.value }))} /></label>
-          <label>Gehört zu <select value={taskDraft.areaId} onChange={(event) => setTaskDraft((draft) => ({ ...draft, areaId: event.target.value }))}><option value="">Kein bestimmter Bereich</option>{AREAS.map((area) => <option key={area.id} value={area.id}>{area.title} · {area.subtitle}</option>)}</select></label>
+          <label>Gehört zu <select value={taskDraft.areaId} onChange={(event) => setTaskDraft((draft) => ({ ...draft, areaId: event.target.value }))}><option value="">Kein bestimmter Bereich</option>{activeAreas.map((area) => <option key={area.id} value={area.id}>{area.title} · {area.subtitle}</option>)}</select></label>
           <label className="file-field">Bild oder Datei <span className="optional">optional, maximal 4 MB</span><input type="file" onChange={(event) => setTaskDraft((draft) => ({ ...draft, file: event.target.files?.[0] ?? null }))} /></label>
           <button className="button primary full" disabled={busy}>{busy ? 'Wird gespeichert …' : 'Handlung speichern'}</button>
         </form>

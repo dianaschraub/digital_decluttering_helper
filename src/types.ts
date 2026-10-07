@@ -1,18 +1,21 @@
 export type AreaKind = 'files' | 'email'
-export type AreaIconName = 'photos' | 'screenshots' | 'downloads' | 'mail'
+export type AreaIconName = 'photos' | 'screenshots' | 'downloads' | 'videos' | 'desktop' | 'documents' | 'mail' | 'other'
+export type AreaStatus = 'active' | 'paused' | 'removed'
 export type ProgressType = 'month' | 'date'
 export type TaskStatus = 'open' | 'done'
 
 export interface Area {
   id: string
   title: string
+  /** Gerät oder Konto, z. B. „Handy“ oder „E-Mail“ */
   subtitle: string
+  /** Überschrift, unter der der Bereich gruppiert wird */
   group: string
   icon: AreaIconName
   kind: AreaKind
-  rhythm: string
   intervalDays: number
   color: string
+  status: AreaStatus
 }
 
 export interface Destination {
@@ -20,6 +23,33 @@ export interface Destination {
   label: string
   note: string
   kinds: AreaKind[]
+}
+
+export type ReminderFrequency = 'weekly' | 'biweekly' | 'monthly'
+
+export interface ReminderSettings {
+  /** Aufräum-Termine im Kalender-Abo anzeigen */
+  enabled: boolean
+  /** Wochentage, 0 = Sonntag … 6 = Samstag */
+  weekdays: number[]
+  /** Uhrzeit „HH:MM“ */
+  time: string
+  frequency: ReminderFrequency
+  /** Bei „alle 2 Wochen“: 0 oder 1 – verschiebt den Rhythmus um eine Woche */
+  weekOffset: number
+  durationMinutes: number
+  /** IANA-Zeitzone, z. B. Europe/Berlin */
+  timezone: string
+  /** Aufgaben mit Wiedervorlage ebenfalls ins Abo */
+  includeTasks: boolean
+  /** Erledigte Aufgaben ausblenden oder mit „✓“ stehen lassen */
+  doneTasks: 'hide' | 'mark'
+}
+
+export interface UserSettings {
+  areas: Area[]
+  destinations: Destination[]
+  reminders: ReminderSettings
 }
 
 export interface Progress {
@@ -67,6 +97,17 @@ export interface WeeklyCheck {
   note: string | null
 }
 
+/** Alles, was zu einer Person gespeichert ist. */
+export interface AppData {
+  settings: UserSettings | null
+  progress: Progress[]
+  sessions: CleaningSession[]
+  tasks: CleaningTask[]
+  checks: WeeklyCheck[]
+  /** Geheimer Teil des persönlichen Kalender-Abo-Links; null, solange keiner erzeugt wurde */
+  calendarToken: string | null
+}
+
 export interface SessionCounts {
   deleted: number
   sorted: number
@@ -80,5 +121,5 @@ export interface TaskDraft {
   file: File | null
 }
 
-export type AppView = 'today' | 'areas' | 'tasks' | 'history'
+export type AppView = 'today' | 'areas' | 'tasks' | 'history' | 'settings'
 export type SyncState = 'saved' | 'saving' | 'error'
