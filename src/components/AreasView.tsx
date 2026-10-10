@@ -1,7 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 import { useSettings } from '../lib/settingsContext'
 import { rhythmLabel } from '../lib/settingsSchema'
-import { backlogDays, formatBacklog, formatProgress, nextProgressLabel } from '../lib/dates'
+import { areaPoint, backlogDays, formatBacklog, formatProgress, nextProgressLabel } from '../lib/dates'
 import type { Progress } from '../types'
 import { AreaSign, BacklogBar } from './ui'
 
@@ -17,7 +17,8 @@ export function AreasView({ progress, selectedAreaId, onChoose, onSettings }: { 
           <div className="area-grid">
             {activeAreas.filter((area) => area.group === group).map((area) => {
               const stored = progress.find((item) => item.area_id === area.id)
-              const backlog = stored ? backlogDays(stored.progress_type, stored.progress_value) : null
+              const point = areaPoint(stored, area.startMonth)
+              const backlog = point ? backlogDays(point.type, point.value) : null
               return (
                 <button key={area.id} className={`area-card ${selectedAreaId === area.id ? 'selected' : ''}`} onClick={() => onChoose(area.id)}>
                   <span className="area-card-top"><AreaSign area={area} size="small" /><span className="rhythm">{rhythmLabel(area.intervalDays)}</span></span>
@@ -25,7 +26,7 @@ export function AreasView({ progress, selectedAreaId, onChoose, onSettings }: { 
                   <span className="area-progress">
                     <span className="area-progress-label">{formatBacklog(backlog)}</span>
                     <BacklogBar days={backlog} intervalDays={area.intervalDays} />
-                    <span className="area-progress-detail">{stored ? <>bis <strong>{formatProgress(stored.progress_type, stored.progress_value)}</strong></> : nextProgressLabel('month', '')}</span>
+                    <span className="area-progress-detail">{stored ? <>bis <strong>{formatProgress(stored.progress_type, stored.progress_value)}</strong></> : nextProgressLabel('month', '', area.startMonth)}</span>
                   </span>
                 </button>
               )

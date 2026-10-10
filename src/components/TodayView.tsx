@@ -3,7 +3,7 @@ import { ArrowRight, Bell, CalendarPlus, FolderInput, ListPlus, Pause, Play, Rot
 import { destinationsFor } from '../data'
 import { rhythmLabel } from '../lib/settingsSchema'
 import { useSettings } from '../lib/settingsContext'
-import { backlogDays, formatBacklog, formatProgress, nextProgressLabel } from '../lib/dates'
+import { areaPoint, backlogDays, formatBacklog, formatProgress, nextProgressLabel } from '../lib/dates'
 import type { Area, CleaningTask, Progress } from '../types'
 import { AreaSign, TimerRing } from './ui'
 
@@ -53,7 +53,8 @@ export function TodayView(props: {
     return () => observer.disconnect()
   }, [])
 
-  const backlog = selectedProgress ? backlogDays(selectedProgress.progress_type, selectedProgress.progress_value) : null
+  const point = areaPoint(selectedProgress, selectedArea.startMonth)
+  const backlog = point ? backlogDays(point.type, point.value) : null
   const focusIsSelected = props.focusArea.id === selectedArea.id
 
   return (
@@ -86,7 +87,7 @@ export function TodayView(props: {
           <div>
             <p className="eyebrow">Aktuelle Einheit</p>
             <h2>{selectedArea.title} <span>{selectedArea.subtitle}</span></h2>
-            <p>{selectedProgress ? `Vollständig bis ${formatProgress(selectedProgress.progress_type, selectedProgress.progress_value)} · ${formatBacklog(backlog)}` : 'Noch kein Stand gespeichert'}</p>
+            <p>{selectedProgress ? `Vollständig bis ${formatProgress(selectedProgress.progress_type, selectedProgress.progress_value)} · ${formatBacklog(backlog)}` : selectedArea.startMonth ? `Noch nicht begonnen · Daten ab ${formatProgress('month', selectedArea.startMonth)} · ${formatBacklog(backlog)}` : 'Noch kein Stand gespeichert'}</p>
           </div>
           <select value={selectedArea.id} onChange={(event) => props.onChooseArea(event.target.value)} aria-label="Bereich auswählen">{activeAreas.map((area) => <option key={area.id} value={area.id}>{area.title} · {area.subtitle}</option>)}</select>
         </div>
@@ -95,7 +96,7 @@ export function TodayView(props: {
           <div className="timer-panel">
             <span className="timer-label">20-Minuten-Einheit</span>
             <div ref={timerRef}><TimerRing progress={props.timerProgress} label={props.clock} running={props.running} /></div>
-            <p>{nextProgressLabel(selectedProgress?.progress_type ?? 'month', selectedProgress?.progress_value ?? '')}</p>
+            <p>{nextProgressLabel(selectedProgress?.progress_type ?? 'month', selectedProgress?.progress_value ?? '', selectedArea.startMonth)}</p>
             <div className="timer-actions">
               <button className="button primary" onClick={props.onToggleTimer}>
                 {props.running ? <><Pause size={17} /> Pause</> : <><Play size={17} /> {props.started && props.timerProgress < 1 ? 'Weiter' : 'Starten'}</>}

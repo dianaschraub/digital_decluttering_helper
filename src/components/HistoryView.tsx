@@ -1,8 +1,8 @@
 import { Check, Download } from 'lucide-react'
 import { useSettings } from '../lib/settingsContext'
-import { coveredPeriod, formatDate, formatSpan } from '../lib/dates'
+import { coveredPeriod, formatDate, formatSpan, startPoint } from '../lib/dates'
 import type { CoveredPeriod } from '../lib/dates'
-import type { CleaningSession, Progress, WeeklyCheck } from '../types'
+import type { Area, CleaningSession, Progress, WeeklyCheck } from '../types'
 import { AreaSign } from './ui'
 
 export function HistoryView(props: {
@@ -19,7 +19,7 @@ export function HistoryView(props: {
   const { activeAreas, findArea } = useSettings()
   const startedAreas = activeAreas.filter((area) => props.progress.some((item) => item.area_id === area.id)).length
   const totalMinutes = props.sessions.reduce((sum, session) => sum + session.duration_minutes, 0)
-  const covered = coveredBySession(props.sessions)
+  const covered = coveredBySession(props.sessions, findArea)
   const totalDays = [...covered.values()].reduce((sum, item) => sum + item.days, 0)
   return (
     <section>
@@ -71,16 +71,17 @@ export function HistoryView(props: {
 
 /**
  * Ordnet jeder Einheit den Zeitraum zu, den sie geschafft hat: vom Stand der
- * vorherigen Einheit desselben Bereichs bis zum eigenen Stand.
+ * vorherigen Einheit desselben Bereichs bis zum eigenen Stand. Die erste
+ * Einheit eines Bereichs zählt ab seinem Startmonat, falls einer eingetragen ist.
  */
-function coveredBySession(sessions: CleaningSession[]) {
+function coveredBySession(sessions: CleaningSession[], findArea: (id: string) => Area | undefined) {
   const result = new Map<string, CoveredPeriod>()
   const chronological = [...sessions].sort((a, b) => a.finished_at.localeCompare(b.finished_at))
   const lastByArea = new Map<string, CleaningSession>()
   for (const session of chronological) {
     const previous = lastByArea.get(session.area_id)
     result.set(session.id, coveredPeriod(
-      previous ? { type: previous.progress_type, value: previous.progress_value } : null,
+      previous ? { type: previous.progress_type, value: previous.progress_value } : startPoint(findArea(session.area_id)?.startMonth),
       { type: session.progress_type, value: session.progress_value },
     ))
     lastByArea.set(session.area_id, session)

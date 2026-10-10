@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Plus, X } from 'lucide-react'
 import { CUSTOM_DEVICE_CONTENTS, DESTINATION_PRESETS, DEVICE_PRESETS, EMAIL_SUGGESTIONS, buildSettings } from '../data'
-import { AREA_TYPES, RHYTHMS, areaType } from '../lib/settingsSchema'
+import { AREA_TYPES, RHYTHMS, areaType, validStartMonth } from '../lib/settingsSchema'
+import { currentMonthIso } from '../lib/dates'
 import type { AreaIconName, AreaKind, UserSettings } from '../types'
 import { AreaSign, BrandMark } from './ui'
 
-interface DeviceChoice { key: string; label: string; offered: AreaIconName[]; contents: AreaIconName[] }
+interface DeviceChoice { key: string; label: string; offered: AreaIconName[]; contents: AreaIconName[]; startMonth: string }
 
 const STEPS = ['Geräte', 'E-Mail', 'Ablageorte', 'Fertig']
 
@@ -13,7 +14,7 @@ export function Onboarding({ onDone, busy, error }: { onDone: (settings: UserSet
   const [step, setStep] = useState(0)
   const [devices, setDevices] = useState<DeviceChoice[]>([])
   const [customDevice, setCustomDevice] = useState('')
-  const [emails, setEmails] = useState<{ name: string; intervalDays: number }[]>([])
+  const [emails, setEmails] = useState<{ name: string; intervalDays: number; startMonth: string }[]>([])
   const [emailName, setEmailName] = useState('')
   const [destinations, setDestinations] = useState<{ label: string; note: string; kinds: AreaKind[] }[]>([])
   const [customDestination, setCustomDestination] = useState('')
@@ -24,13 +25,13 @@ export function Onboarding({ onDone, busy, error }: { onDone: (settings: UserSet
   function toggleDevice(preset: (typeof DEVICE_PRESETS)[number]) {
     setDevices((current) => current.some((device) => device.key === preset.id)
       ? current.filter((device) => device.key !== preset.id)
-      : [...current, { key: preset.id, label: preset.label, offered: preset.contents, contents: [...preset.defaults] }])
+      : [...current, { key: preset.id, label: preset.label, offered: preset.contents, contents: [...preset.defaults], startMonth: '' }])
   }
 
   function addCustomDevice() {
     const label = customDevice.trim()
     if (!label) return
-    setDevices((current) => [...current, { key: `custom-${Date.now()}`, label, offered: CUSTOM_DEVICE_CONTENTS, contents: ['downloads'] }])
+    setDevices((current) => [...current, { key: `custom-${Date.now()}`, label, offered: CUSTOM_DEVICE_CONTENTS, contents: ['downloads'], startMonth: '' }])
     setCustomDevice('')
   }
 
@@ -44,7 +45,7 @@ export function Onboarding({ onDone, busy, error }: { onDone: (settings: UserSet
   function addEmail(name: string) {
     const trimmed = name.trim()
     if (!trimmed || emails.some((email) => email.name.toLowerCase() === trimmed.toLowerCase())) return
-    setEmails((current) => [...current, { name: trimmed, intervalDays: 7 }])
+    setEmails((current) => [...current, { name: trimmed, intervalDays: 7, startMonth: '' }])
     setEmailName('')
   }
 
@@ -63,8 +64,8 @@ export function Onboarding({ onDone, busy, error }: { onDone: (settings: UserSet
 
   function finish() {
     onDone(buildSettings({
-      devices: devices.filter((device) => device.contents.length > 0).map((device) => ({ label: device.label, contents: device.contents })),
-      emails,
+      devices: devices.filter((device) => device.contents.length > 0).map((device) => ({ label: device.label, contents: device.contents, startMonth: validStartMonth(device.startMonth) })),
+      emails: emails.map((email) => ({ ...email, startMonth: validStartMonth(email.startMonth) })),
       destinations,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Berlin',
     }))
@@ -85,7 +86,7 @@ export function Onboarding({ onDone, busy, error }: { onDone: (settings: UserSet
         {step === 0 && <>
           <p className="eyebrow">Willkommen</p>
           <h1>Was möchtest du aufräumen?</h1>
-          <p className="muted">Wähle deine Geräte und was du dort in Ordnung bringen willst. Alles lässt sich später in den Einstellungen ändern.</p>
+          <p className="muted">Wähle deine Geräte und was du dort in Ordnung bringen willst. Wenn du weißt, seit wann es dort Daten gibt, trag den Monat ein – dort beginnt das Aufräumen. Alles lässt sich später in den Einstellungen ändern.</p>
           <div className="choice-chips">
             {DEVICE_PRESETS.map((preset) => {
               const active = devices.some((device) => device.key === preset.id)
@@ -112,6 +113,9 @@ export function Onboarding({ onDone, busy, error }: { onDone: (settings: UserSet
                   </button>
                 })}
               </div>
+              <label className="start-month">Älteste Daten ab <span className="optional">optional, z. B. seit du das Gerät hast</span>
+                <input type="month" value={device.startMonth} max={currentMonthIso()} onChange={(event) => setDevices((current) => current.map((item) => item.key === device.key ? { ...item, startMonth: event.target.value } : item))} />
+              </label>
             </div>)}
           </div>
         </>}
@@ -135,6 +139,9 @@ export function Onboarding({ onDone, busy, error }: { onDone: (settings: UserSet
                 {RHYTHMS.map((rhythm) => <option key={rhythm.days} value={rhythm.days}>{rhythm.label}</option>)}
               </select>
               <button type="button" className="icon-button small" aria-label={`${email.name} entfernen`} onClick={() => setEmails((current) => current.filter((_, itemIndex) => itemIndex !== index))}><X size={14} /></button>
+              <label className="start-month row-start">Älteste Mails ab <span className="optional">optional</span>
+                <input type="month" value={email.startMonth} max={currentMonthIso()} onChange={(event) => setEmails((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, startMonth: event.target.value } : item))} />
+              </label>
             </div>)}
           </div>
         </>}

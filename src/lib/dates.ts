@@ -62,8 +62,12 @@ export function formatProgress(type: ProgressType, value: string) {
     : new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
 }
 
-export function nextProgressLabel(type: ProgressType, value: string) {
-  if (!value) return 'Beginne mit den ältesten Dateien oder Nachrichten.'
+export function nextProgressLabel(type: ProgressType, value: string, startMonth?: string) {
+  if (!value) {
+    return startMonth
+      ? `Beginne bei ${formatProgress('month', startMonth)} – mit den ältesten Dateien oder Nachrichten.`
+      : 'Beginne mit den ältesten Dateien oder Nachrichten.'
+  }
   const date = new Date(`${value}${type === 'month' ? '-01' : ''}T12:00:00`)
   if (type === 'month') {
     date.setMonth(date.getMonth() + 1)
@@ -76,6 +80,39 @@ export function nextProgressLabel(type: ProgressType, value: string) {
 export interface ProgressPoint {
   type: ProgressType
   value: string
+}
+
+/**
+ * Ausgangspunkt eines Bereichs, bevor ein Stand gespeichert ist: das Ende des
+ * Monats vor dem Startmonat. So zählt der Startmonat selbst schon zum Rückstand.
+ */
+export function startPoint(startMonth: string | undefined): ProgressPoint | null {
+  if (!startMonth || !/^\d{4}-\d{2}$/.test(startMonth)) return null
+  const [year, month] = startMonth.split('-').map(Number)
+  return { type: 'month', value: currentMonthIso(new Date(year, month - 2, 1)) }
+}
+
+/** Gespeicherter Stand eines Bereichs – oder, wenn noch keiner da ist, sein Ausgangspunkt. */
+export function areaPoint(stored: { progress_type: ProgressType; progress_value: string } | undefined, startMonth: string | undefined): ProgressPoint | null {
+  return stored ? { type: stored.progress_type, value: stored.progress_value } : startPoint(startMonth)
+}
+
+/**
+ * Wandelt einen Stand beim Umschalten zwischen Monat und Datum um, ohne mehr
+ * als erledigt zu markieren: Aus einem Monat wird sein letzter Tag, aus einem
+ * Datum der letzte vollständig enthaltene Monat.
+ */
+export function convertProgressValue(value: string, to: ProgressType) {
+  if (to === 'date' && /^\d{4}-\d{2}$/.test(value)) {
+    const [year, month] = value.split('-').map(Number)
+    return todayIso(new Date(year, month, 0))
+  }
+  if (to === 'month' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-').map(Number)
+    const lastDay = new Date(year, month, 0).getDate()
+    return currentMonthIso(new Date(year, day === lastDay ? month - 1 : month - 2, 1))
+  }
+  return value
 }
 
 export interface CoveredPeriod {

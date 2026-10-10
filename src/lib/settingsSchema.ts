@@ -80,6 +80,14 @@ export function areaType(icon: AreaIconName) {
 const ICONS = new Set<AreaIconName>(AREA_TYPES.map((type) => type.icon))
 const STATUSES = new Set<AreaStatus>(['active', 'paused', 'removed'])
 const ID = /^[a-z0-9-]{1,48}$/
+const MONTH = /^(19[89]\d|2\d{3})-(0[1-9]|1[0-2])$/
+
+/** Startmonat „YYYY-MM“ ab 1980 und nicht in der Zukunft – sonst leer. */
+export function validStartMonth(value: unknown, now = new Date()) {
+  if (typeof value !== 'string' || !MONTH.test(value)) return ''
+  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  return value <= current ? value : ''
+}
 
 function text(value: unknown, max: number) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : ''
@@ -108,6 +116,7 @@ export function sanitizeSettings(input: unknown): UserSettings {
     if (!id || seen.has(id) || !title) continue
     seen.add(id)
     const interval = Math.round(Number(value.intervalDays))
+    const startMonth = validStartMonth(value.startMonth)
     areas.push({
       id,
       title,
@@ -118,6 +127,7 @@ export function sanitizeSettings(input: unknown): UserSettings {
       intervalDays: Number.isFinite(interval) ? Math.min(365, Math.max(1, interval)) : 30,
       color: typeof value.color === 'string' && /^#[0-9a-f]{6}$/i.test(value.color) ? value.color : areaType(icon).color,
       status: STATUSES.has(value.status as AreaStatus) ? value.status as AreaStatus : 'active',
+      ...(startMonth ? { startMonth } : {}),
     })
   }
   if (!areas.some((area) => area.status === 'active')) throw new Error('Mindestens ein Bereich muss aktiv sein.')

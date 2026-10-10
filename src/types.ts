@@ -16,6 +16,8 @@ export interface Area {
   intervalDays: number
   color: string
   status: AreaStatus
+  /** Monat „YYYY-MM“, ab dem es Daten gibt (z. B. seit es das Handy gibt). Dort beginnt das Aufräumen. */
+  startMonth?: string
 }
 
 export interface Destination {

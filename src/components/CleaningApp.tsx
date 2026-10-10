@@ -4,13 +4,13 @@ import { MEMOS, suggestArea } from '../data'
 import { createTask, completeTask, deleteAccount, deleteTask, fetchCalendarToken, finishCleaningSession, loadAppData, openAttachment, saveSettings, saveWeeklyCheck } from '../lib/api'
 import { logout } from '../lib/auth'
 import { openCleaningCalendar, openTaskCalendar } from '../lib/calendar'
-import { coveredPeriod, currentMonthIso, progressBoundary, todayIso } from '../lib/dates'
+import { areaPoint, convertProgressValue, coveredPeriod, formatProgress, progressBoundary, todayIso } from '../lib/dates'
 import type { CoveredPeriod } from '../lib/dates'
 import { exportCsv } from '../lib/export'
 import { formatClock, useCleaningSession } from '../hooks/useCleaningSession'
 import { SettingsProvider, useSettings } from '../lib/settingsContext'
 import { shareTask } from '../lib/share'
-import type { AppData, AppView, CleaningSession, CleaningTask, Progress, ProgressType, SyncState, TaskDraft, UserSettings, WeeklyCheck } from '../types'
+import type { AppData, AppView, Area, CleaningSession, CleaningTask, Progress, ProgressType, SyncState, TaskDraft, UserSettings, WeeklyCheck } from '../types'
 import { Onboarding } from './Onboarding'
 import { SettingsView } from './SettingsView'
 import { AreasView } from './AreasView'
@@ -84,7 +84,7 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
   const [taskOpen, setTaskOpen] = useState(false)
   const [memo, setMemo] = useState<{ text: string; covered: CoveredPeriod } | null>(null)
   const [progressType, setProgressType] = useState<ProgressType>('month')
-  const [progressValue, setProgressValue] = useState(currentMonthIso())
+  const [progressValue, setProgressValue] = useState('')
   const [progressNote, setProgressNote] = useState('')
   // Freiwillige, grob geschätzte Zahlen – leer lassen ist ausdrücklich in Ordnung.
   const [roughDeleted, setRoughDeleted] = useState('')
@@ -126,13 +126,20 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
     document.title = session.running ? `${clock} · ${BASE_TITLE}` : timeUp ? `✓ Zeit um · ${BASE_TITLE}` : BASE_TITLE
   }, [clock, session.running, timeUp])
 
-  function fillProgressForm(stored: Progress | undefined) {
+  // Von alt nach neu: vorgeschlagen wird der bisherige Stand – oder beim ersten
+  // Mal der Startmonat –, nie „heute“. Sonst wäre mit einem Tipp alles erledigt.
+  function fillProgressForm(stored: Progress | undefined, area: Area | undefined) {
     setProgressType(stored?.progress_type ?? 'month')
-    setProgressValue(stored?.progress_value ?? currentMonthIso())
+    setProgressValue(stored?.progress_value ?? area?.startMonth ?? '')
+  }
+
+  function switchProgressType(type: ProgressType) {
+    setProgressType(type)
+    setProgressValue((value) => convertProgressValue(value, type))
   }
 
   function openFinish() {
-    fillProgressForm(selectedProgress)
+    fillProgressForm(selectedProgress, selectedArea)
     setFinishOpen(true)
   }
 
@@ -165,10 +172,10 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
     if (session.progress > 0 && !window.confirm('Die laufende Einheit ist noch nicht gespeichert. Trotzdem den Bereich wechseln?')) return
     session.switchArea(areaId)
     setTimeUp(false)
-    fillProgressForm(progress.find((item) => item.area_id === areaId))
+    fillProgressForm(progress.find((item) => item.area_id === areaId), findArea(areaId))
   }
 
-  const previousPoint = selectedProgress ? { type: selectedProgress.progress_type, value: selectedProgress.progress_value } : null
+  const previousPoint = areaPoint(selectedProgress, selectedArea.startMonth)
   const covered = progressValue ? coveredPeriod(previousPoint, { type: progressType, value: progressValue }) : null
 
   function roughNumber(value: string) {
@@ -181,6 +188,8 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
     if (!progressValue) return
     if (selectedProgress && progressBoundary(progressType, progressValue) < progressBoundary(selectedProgress.progress_type, selectedProgress.progress_value)) {
       if (!window.confirm('Der neue Stand liegt vor dem bisher gespeicherten Stand. Möchtest du ihn wirklich rückwärts korrigieren?')) return
+    } else if (!selectedProgress && previousPoint && progressBoundary(progressType, progressValue) <= progressBoundary(previousPoint.type, previousPoint.value)) {
+      if (!window.confirm(`Der Stand liegt vor dem Beginn deiner Daten (${formatProgress('month', selectedArea.startMonth ?? '')}). Trotzdem speichern?`)) return
     }
     setBusy(true)
     const result = await withSync(() => finishCleaningSession({
@@ -371,12 +380,13 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
         <form onSubmit={saveSession} className="stack-form">
           <p className="modal-lead">Bis wohin hast du <strong>{selectedArea.title} · {selectedArea.subtitle}</strong> vollständig bearbeitet?</p>
           <div className="segment-control">
-            <button type="button" className={progressType === 'month' ? 'active' : ''} onClick={() => { setProgressType('month'); setProgressValue(currentMonthIso()) }}>Monat</button>
-            <button type="button" className={progressType === 'date' ? 'active' : ''} onClick={() => { setProgressType('date'); setProgressValue(todayIso()) }}>Genaues Datum</button>
+            <button type="button" className={progressType === 'month' ? 'active' : ''} onClick={() => switchProgressType('month')}>Monat</button>
+            <button type="button" className={progressType === 'date' ? 'active' : ''} onClick={() => switchProgressType('date')}>Genaues Datum</button>
           </div>
           <label>{progressType === 'month' ? 'Vollständig geprüft bis Monat' : 'Vollständig geprüft bis Datum'}
-            <input type={progressType === 'month' ? 'month' : 'date'} value={progressValue} onChange={(event) => setProgressValue(event.target.value)} required />
+            <input type={progressType === 'month' ? 'month' : 'date'} value={progressValue} max={progressType === 'month' ? todayIso().slice(0, 7) : todayIso()} onChange={(event) => setProgressValue(event.target.value)} required />
           </label>
+          {!selectedProgress && !selectedArea.startMonth && <p className="small muted">Trag ein, bis wohin du – von den ältesten Daten an – alles geprüft hast. Tipp: In den Einstellungen kannst du beim Bereich eintragen, ab wann es Daten gibt; dann zeigt die App auch den geschafften Zeitraum.</p>}
           <label>Notiz <span className="optional">optional</span><textarea value={progressNote} onChange={(event) => setProgressNote(event.target.value)} placeholder="Was ist beim nächsten Mal wichtig?" rows={2} /></label>
           {covered && <div className={`covered-preview ${covered.days > 0 ? '' : 'neutral'}`}>
             <span>Diese Einheit · {session.elapsedMinutes} Min.</span>

@@ -7,6 +7,7 @@ Eine mobile Web-App, mit der man Fotos, Screenshots, Downloads, Ordner und E-Mai
 - **Eigenes Konto** für jede Person, Daten strikt getrennt
 - **Einrichtung beim ersten Start:** Geräte (Handy, Tablet, Computer oder eigene), was dort aufgeräumt wird, E-Mail-Postfächer und Ablageorte (Google Drive, OneDrive, iCloud, externe Festplatte, eigene …)
 - **Einstellungen:** Bereiche hinzufügen, umbenennen, pausieren, entfernen und ihren Rhythmus festlegen; Ablageorte für Dateien und/oder E-Mails pflegen
+- **Von alt nach neu:** Pro Bereich lässt sich eintragen, ab welchem Monat es Daten gibt (z. B. seit es das Handy gibt). Dort beginnt das Aufräumen; die App zeigt den ganzen Rückstand schon vor der ersten Einheit und schlägt beim Speichern nie „heute“ vor, sondern den bisherigen Stand bzw. den Startmonat
 - 20-Minuten-Timer mit Fortschrittsring, der auch beim Wechsel in die Foto- oder Mail-App und nach einem Neuladen weiterläuft
 - Spickkarte mit der Entscheidungsregel und den eigenen Ablageorten – gearbeitet wird direkt in der Foto-, Datei- oder Mail-App, ohne Mitklicken
 - nach jeder Einheit zeigt die App den geschafften Zeitraum, z. B. „3 Monate aufgeräumt“; grobe Zahlen sind freiwillig

@@ -3,6 +3,7 @@ import { CalendarClock, CalendarPlus, Copy, Download, Pause, Pencil, Play, Plus,
 import { calendarFeedUrl, describeSeries, downloadSeriesIcs, openSeriesInGoogle } from '../lib/calendar'
 import { planSlots } from '../lib/schedule'
 import { AREA_TYPES, EMAIL_COLORS, FREQUENCIES, MAX_AREAS, MAX_DESTINATIONS, RHYTHMS, WEEKDAYS, WEEKDAY_ORDER, areaType, makeId, rhythmLabel } from '../lib/settingsSchema'
+import { currentMonthIso, formatProgress } from '../lib/dates'
 import type { Area, AreaIconName, AreaKind, Destination, Progress, ReminderSettings, UserSettings } from '../types'
 import { PrivacyLink } from './PrivacyNotice'
 import { AreaSign } from './ui'
@@ -173,7 +174,7 @@ export function SettingsView(props: {
             ? <AreaEditor key={area.id} area={area} groups={groups} onChange={(change) => updateArea(area.id, change)} onClose={() => setEditingArea(null)} />
             : <div key={area.id} className={`settings-row ${area.status === 'paused' ? 'paused' : ''}`}>
               <AreaSign area={area} size="small" />
-              <div className="settings-row-main"><strong>{area.title}</strong><small>{area.subtitle} · {rhythmLabel(area.intervalDays)}{area.status === 'paused' ? ' · pausiert' : ''}</small></div>
+              <div className="settings-row-main"><strong>{area.title}</strong><small>{area.subtitle} · {rhythmLabel(area.intervalDays)}{area.startMonth ? ` · ab ${formatProgress('month', area.startMonth)}` : ''}{area.status === 'paused' ? ' · pausiert' : ''}</small></div>
               <div className="row-actions">
                 <button type="button" className="icon-button small" onClick={() => setEditingArea(area.id)} aria-label={`${area.title} bearbeiten`} title="Bearbeiten"><Pencil size={14} /></button>
                 {area.status === 'active'
@@ -235,6 +236,11 @@ function AreaEditor({ area, groups, onChange, onClose }: { area: Area; groups: s
         }}>{AREA_TYPES.map((type) => <option key={type.icon} value={type.icon}>{type.label}</option>)}</select></label>
         <label>Rhythmus<select value={area.intervalDays} onChange={(event) => onChange({ intervalDays: Number(event.target.value) })}>{RHYTHMS.map((rhythm) => <option key={rhythm.days} value={rhythm.days}>{rhythm.label}</option>)}</select></label>
       </div>
+      <div className="field-row">
+        <label>{area.kind === 'email' ? 'Älteste Mails ab' : 'Älteste Daten ab'} <span className="optional">optional – hier beginnt das Aufräumen</span>
+          <input type="month" value={area.startMonth ?? ''} max={currentMonthIso()} onChange={(event) => onChange({ startMonth: event.target.value || undefined })} />
+        </label>
+      </div>
       <datalist id="settings-groups">{groups.filter((group) => group !== 'E-Mail').map((group) => <option key={group} value={group} />)}</datalist>
       <button type="button" className="button ghost" onClick={onClose}>Fertig</button>
     </div>
@@ -247,6 +253,7 @@ function NewAreaForm({ groups, emailCount, onAdd }: { groups: string[]; emailCou
   const [title, setTitle] = useState('')
   const [device, setDevice] = useState('')
   const [intervalDays, setIntervalDays] = useState(30)
+  const [startMonth, setStartMonth] = useState('')
   const isMail = icon === 'mail'
 
   if (!open) return <button type="button" className="button ghost" onClick={() => setOpen(true)}><Plus size={16} /> Bereich hinzufügen</button>
@@ -266,8 +273,10 @@ function NewAreaForm({ groups, emailCount, onAdd }: { groups: string[]; emailCou
       intervalDays,
       color: isMail ? EMAIL_COLORS[emailCount % EMAIL_COLORS.length] : type.color,
       status: 'active',
+      ...(startMonth ? { startMonth } : {}),
     })
     setTitle('')
+    setStartMonth('')
     setOpen(false)
   }
 
@@ -280,6 +289,9 @@ function NewAreaForm({ groups, emailCount, onAdd }: { groups: string[]; emailCou
       <div className="field-row">
         <label>{isMail ? 'Zusatz (optional)' : 'Gerät'}<input value={device} onChange={(event) => setDevice(event.target.value)} list="new-area-groups" placeholder={isMail ? 'z. B. Arbeit' : 'z. B. Handy'} maxLength={30} /></label>
         <label>Rhythmus<select value={intervalDays} onChange={(event) => setIntervalDays(Number(event.target.value))}>{RHYTHMS.map((rhythm) => <option key={rhythm.days} value={rhythm.days}>{rhythm.label}</option>)}</select></label>
+      </div>
+      <div className="field-row">
+        <label>{isMail ? 'Älteste Mails ab' : 'Älteste Daten ab'} <span className="optional">optional</span><input type="month" value={startMonth} max={currentMonthIso()} onChange={(event) => setStartMonth(event.target.value)} /></label>
       </div>
       <datalist id="new-area-groups">{groups.filter((group) => group !== 'E-Mail').map((group) => <option key={group} value={group} />)}</datalist>
       <div className="subscribe-actions">
