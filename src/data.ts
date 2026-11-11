@@ -1,4 +1,5 @@
 import type { Area, AreaIconName, AreaKind, Destination, Progress, UserSettings } from './types'
+import { effectiveInterval } from './lib/stock'
 import { areaPoint, backlogDays, daysSince } from './lib/dates'
 import { EMAIL_COLORS, areaType, defaultReminders, makeId } from './lib/settingsSchema'
 
@@ -94,7 +95,7 @@ export function suggestArea(areas: Area[], progress: Progress[]) {
     }
     return {
       area,
-      score: daysSince(item.updated_at) / area.intervalDays,
+      score: daysSince(item.updated_at) / effectiveInterval(area),
       backlog: backlogDays(item.progress_type, item.progress_value) ?? 0,
       index,
     }

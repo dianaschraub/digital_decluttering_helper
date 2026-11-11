@@ -94,6 +94,7 @@ export function SettingsView(props: {
         <label className="switch-row"><input type="checkbox" checked={reminders.enabled} onChange={(event) => setReminders({ enabled: event.target.checked })} /><span>Aufräum-Termine planen</span></label>
 
         {reminders.enabled && <>
+          <p className="hint-box">Höchstens 5 Aufräumeinheiten pro Woche insgesamt. Unter „Bereiche → Bestand & automatische Termine“ kannst du Messwerte erfassen und bei Wachstum zusätzliche Termine aktivieren. Diese können weitere Wochentage nutzen; die Vorschau zeigt den angepassten Plan.</p>
           <div className="field-label">An welchen Tagen?</div>
           <div className="choice-chips compact">
             {WEEKDAY_ORDER.map((day) => {

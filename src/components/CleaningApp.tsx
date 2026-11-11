@@ -330,7 +330,7 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
           onAttention={() => setView(dueTasks.length > 0 ? 'tasks' : 'history')}
         />}
 
-        {view === 'areas' && <AreasView progress={progress} selectedAreaId={selectedArea.id} onChoose={chooseArea} onSettings={() => setView('settings')} />}
+        {view === 'areas' && <AreasView progress={progress} selectedAreaId={selectedArea.id} onChoose={chooseArea} onSettings={() => setView('settings')} onStockSaved={onSettingsSaved} />}
 
         {view === 'tasks' && <TasksView
           openTasks={openTasks}

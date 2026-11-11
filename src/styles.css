@@ -518,3 +518,15 @@ textarea { resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+.stock-details { padding: 14px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.stock-details summary { cursor: pointer; }
+.stock-form h3 { margin-top: 18px; }
+.stock-form label { display: flex; flex-direction: column; gap: 6px; }
+.stock-form .switch-row { flex-direction: row; margin: 14px 0; }
+.area-grid > div > .area-card { width: 100%; }
+.area-grid > div { min-width: 0; }
+.area-grid > div:has(.stock-details[open]) { grid-column: 1 / -1; }
+.stock-form input, .stock-form select { min-width: 0; width: 100%; }
+.stock-form .switch-row input { width: auto; }
+.stock-form details { margin-top: 16px; }

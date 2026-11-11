@@ -1,6 +1,6 @@
 // Gemeinsame Regeln für Bereiche und Ablageorte – genutzt von der App und der
 // Netlify-Funktion. Ohne DOM-Abhängigkeiten, damit beide Seiten sie importieren können.
-import type { Area, AreaIconName, AreaKind, AreaStatus, Destination, ReminderFrequency, ReminderSettings, UserSettings } from '../types'
+import type { StockMeasurement, Area, AreaIconName, AreaKind, AreaStatus, Destination, ReminderFrequency, ReminderSettings, UserSettings } from '../types'
 
 export const MAX_AREAS = 40
 export const MAX_DESTINATIONS = 40
@@ -128,6 +128,14 @@ export function sanitizeSettings(input: unknown): UserSettings {
       color: typeof value.color === 'string' && /^#[0-9a-f]{6}$/i.test(value.color) ? value.color : areaType(icon).color,
       status: STATUSES.has(value.status as AreaStatus) ? value.status as AreaStatus : 'active',
       ...(startMonth ? { startMonth } : {}),
+      adaptive: value.adaptive === true,
+      stock: Array.isArray(value.stock) ? value.stock.filter((entry): entry is StockMeasurement => {
+        if (!entry || typeof entry !== 'object') return false
+        const item = entry as StockMeasurement
+        return typeof item.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.date)
+          && typeof item.value === 'number' && Number.isFinite(item.value) && item.value >= 0
+          && ['count', 'MB', 'GB'].includes(item.unit) && (item.unit !== 'count' || Number.isInteger(item.value))
+      }).sort((a, b) => a.date.localeCompare(b.date)).slice(-100) : [],
     })
   }
   if (!areas.some((area) => area.status === 'active')) throw new Error('Mindestens ein Bereich muss aktiv sein.')

@@ -10,6 +10,11 @@ import type {
   WeeklyCheck,
 } from '../types'
 
+export async function recordStock(areaId: string, value: number, unit: 'count' | 'MB' | 'GB', date: string, adaptive: boolean) {
+  const result = await post<{ settings: UserSettings }>('record_stock', { areaId, value, unit, date, adaptive })
+  return result.settings
+}
+
 const API_URL = '/.netlify/functions/app-data'
 
 async function parseResponse<T>(response: Response): Promise<T> {

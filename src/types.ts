@@ -4,6 +4,13 @@ export type AreaStatus = 'active' | 'paused' | 'removed'
 export type ProgressType = 'month' | 'date'
 export type TaskStatus = 'open' | 'done'
 
+export type StockUnit = 'count' | 'MB' | 'GB'
+export interface StockMeasurement {
+  date: string
+  value: number
+  unit: StockUnit
+}
+
 export interface Area {
   id: string
   title: string
@@ -18,6 +25,8 @@ export interface Area {
   status: AreaStatus
   /** Monat „YYYY-MM“, ab dem es Daten gibt (z. B. seit es das Handy gibt). Dort beginnt das Aufräumen. */
   startMonth?: string
+  adaptive?: boolean
+  stock?: StockMeasurement[]
 }
 
 export interface Destination {

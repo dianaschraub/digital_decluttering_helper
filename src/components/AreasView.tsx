@@ -1,11 +1,12 @@
+import { StockForm } from './StockForm'
 import { ArrowRight } from 'lucide-react'
 import { useSettings } from '../lib/settingsContext'
 import { rhythmLabel } from '../lib/settingsSchema'
 import { areaPoint, backlogDays, formatBacklog, formatProgress, nextProgressLabel } from '../lib/dates'
-import type { Progress } from '../types'
+import type { Progress, UserSettings } from '../types'
 import { AreaSign, BacklogBar } from './ui'
 
-export function AreasView({ progress, selectedAreaId, onChoose, onSettings }: { progress: Progress[]; selectedAreaId: string; onChoose: (id: string) => void; onSettings: () => void }) {
+export function AreasView({ progress, selectedAreaId, onChoose, onSettings, onStockSaved }: { progress: Progress[]; selectedAreaId: string; onChoose: (id: string) => void; onSettings: () => void; onStockSaved: (settings: UserSettings) => void }) {
   const { activeAreas } = useSettings()
   const groups = [...new Set(activeAreas.map((area) => area.group))]
   return (
@@ -20,7 +21,7 @@ export function AreasView({ progress, selectedAreaId, onChoose, onSettings }: { 
               const point = areaPoint(stored, area.startMonth)
               const backlog = point ? backlogDays(point.type, point.value) : null
               return (
-                <button key={area.id} className={`area-card ${selectedAreaId === area.id ? 'selected' : ''}`} onClick={() => onChoose(area.id)}>
+                <div key={area.id}><button className={`area-card ${selectedAreaId === area.id ? 'selected' : ''}`} onClick={() => onChoose(area.id)}>
                   <span className="area-card-top"><AreaSign area={area} size="small" /><span className="rhythm">{rhythmLabel(area.intervalDays)}</span></span>
                   <span className="area-card-title"><strong>{area.title}</strong><small>{area.subtitle}</small></span>
                   <span className="area-progress">
@@ -28,7 +29,7 @@ export function AreasView({ progress, selectedAreaId, onChoose, onSettings }: { 
                     <BacklogBar days={backlog} intervalDays={area.intervalDays} />
                     <span className="area-progress-detail">{stored ? <>bis <strong>{formatProgress(stored.progress_type, stored.progress_value)}</strong></> : nextProgressLabel('month', '', area.startMonth)}</span>
                   </span>
-                </button>
+                </button><details className="stock-details"><summary>Bestand & automatische Termine</summary><StockForm area={area} onSaved={onStockSaved} /></details></div>
               )
             })}
           </div>

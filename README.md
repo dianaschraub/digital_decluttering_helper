@@ -19,6 +19,14 @@ Eine mobile Web-App, mit der man Fotos, Screenshots, Downloads, Ordner und E-Mai
 - Konto samt aller Daten jederzeit selbst löschbar
 - heller und dunkler Modus, installierbar auf dem Startbildschirm
 
+## Bestandsmessung und automatische Termine
+
+Unter **Bereiche → Bestand & automatische Termine** lassen sich pro Rubrik freiwillig datierte Bestände als Anzahl, MB oder GB eintragen. Möglichst nach dem Aufräumen messen, damit die Werte vergleichbar bleiben. MB/GB werden mit 1 GB = 1.000 MB umgerechnet; Anzahlen bilden eine eigene Messreihe. Pro Tag und Messart ersetzt eine Korrektur den vorhandenen Wert, maximal 100 Messungen pro Rubrik bleiben erhalten.
+
+Die Automatik wird pro Rubrik beim Speichern einer Messung eingeschaltet. Ein Anstieg fordert 2 Einheiten pro Woche an, ab 5 % Wachstum 3, zwei aufeinanderfolgende Anstiege 5. Ein stabiler oder sinkender Bestand hebt die Erhöhung wieder auf. Über alle Rubriken werden **höchstens fünf Aufräumtermine pro Kalenderwoche (Montag–Sonntag)** geplant. Bei mehreren wachsenden Rubriken entscheidet die Dringlichkeit relativ zum angepassten Rhythmus. Die Automatik kann zusätzliche Wochentage zur eingestellten Uhrzeit nutzen und einen zweiwöchentlichen/monatlichen Grundrhythmus vorübergehend auf wöchentlich erhöhen. Pausierte/entfernte Rubriken erzeugen keinen Bedarf.
+
+Vorschau und persönliches Kalender-Abo verwenden dieselbe Planung. Zum Übernehmen muss das Abo einmal in Google Kalender abonniert sein; Änderungen erscheinen beim nächsten Abgleich, häufig erst nach einigen Stunden. Aufräumtermine enthalten einen Erinnerungshinweis 10 Minuten vorher; die tatsächliche Benachrichtigung hängt von der Kalender-App ab. Kein direkter Schreibzugriff auf Google Kalender, keine zusätzlichen Push-Benachrichtigungen und kein automatisches Auslesen des Gerätespeichers.
+
 ## Wo die Daten liegen
 
 | Bestandteil | Speicherort |
@@ -113,6 +121,7 @@ netlify.toml                   Build, Weiterleitungen und Sicherheitsheader
 ## Build prüfen
 
 ```bash
+npm test
 npm run build
 npm audit --omit=dev
 ```

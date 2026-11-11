@@ -147,7 +147,39 @@ export default async (request: Request, _context: Context) => {
       } catch (error) {
         throw new HttpError(400, error instanceof Error ? error.message : 'Ungültige Einstellungen.')
       }
-      await updateUserData(userId, (data) => { data.settings = settings })
+      const saved = await updateUserData(userId, (data) => {
+        // Einstellungen dürfen neuere Messwerte von einem anderen Gerät nicht überschreiben.
+        settings.areas = settings.areas.map((area) => {
+          const current = data.settings?.areas.find((item) => item.id === area.id)
+          return { ...area, stock: current?.stock ?? [], adaptive: current?.adaptive ?? false }
+        })
+        data.settings = settings
+        return settings
+      })
+      return json({ settings: saved })
+    }
+
+    if (action === 'record_stock') {
+      const areaId = requireText(payload.areaId, 'Bereich', 48)
+      const unit = payload.unit
+      const value = payload.value
+      if (!['count', 'MB', 'GB'].includes(String(unit)) || typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1e12 || (unit === 'count' && !Number.isInteger(value)) || typeof payload.adaptive !== 'boolean') {
+        throw new HttpError(400, 'Bitte einen gültigen, nicht negativen Bestand eingeben (Anzahlen nur ganzzahlig).')
+      }
+      const date = requireText(payload.date, 'Messdatum', 10)
+      const parsed = new Date(`${date}T00:00:00Z`)
+      // Ortsdatum kann dem UTC-Datum um einen Tag voraus sein.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date || parsed.getTime() > Date.now() + 86400000) throw new HttpError(400, 'Ungültiges Messdatum.')
+      const settings = await updateUserData(userId, (data) => {
+        const area = data.settings?.areas.find((item) => item.id === areaId && item.status === 'active')
+        if (!area || !data.settings) throw new HttpError(400, 'Diesen aktiven Bereich gibt es nicht.')
+        const measurement = { date, value, unit: unit as 'count' | 'MB' | 'GB' }
+        // Pro Tag und Messart nur ein Wert; Korrekturen zählen nicht als erneutes Wachstum.
+        area.stock = [...(area.stock ?? []).filter((item) => item.date !== date || (item.unit === 'count') !== (unit === 'count')), measurement]
+          .sort((a, b) => a.date.localeCompare(b.date)).slice(-100)
+        area.adaptive = payload.adaptive as boolean
+        return data.settings
+      })
       return json({ settings })
     }
 

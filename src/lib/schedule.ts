@@ -2,6 +2,8 @@
 // App (Vorschau) und Netlify-Funktion (Kalender-Abo) dieselbe Logik nutzen.
 import type { Area, Progress, ReminderSettings } from '../types'
 
+import { effectiveInterval, MAX_WEEKLY_SESSIONS, weeklyDemand } from './stock'
+
 const DAY = 24 * 60 * 60 * 1000
 
 export interface PlannedSlot {
@@ -46,6 +48,8 @@ export function upcomingSlots(reminders: ReminderSettings, now = Date.now(), cou
   const [hour, minute] = reminders.time.split(':').map(Number)
   const today = localParts(now, reminders.timezone)
   const slots: { start: Date; end: Date; localDate: string }[] = []
+  // Feste Tage begrenzen die gesamte Kalenderwoche, auch wenn heute schon mitten in der Woche ist.
+  const allowedDays = [1, 2, 3, 4, 5, 6, 0].filter((day) => reminders.weekdays.includes(day)).slice(0, MAX_WEEKLY_SESSIONS)
   for (let offset = 0; offset < 400 && slots.length < count; offset += 1) {
     // Kalendertag in der Zeitzone; Mittag als Anker, damit Sommerzeitwechsel nicht stören
     const noon = Date.UTC(today.year, today.month - 1, today.day + offset, 12)
@@ -54,7 +58,7 @@ export function upcomingSlots(reminders: ReminderSettings, now = Date.now(), cou
     const month = date.getUTCMonth() + 1
     const day = date.getUTCDate()
     const weekday = date.getUTCDay()
-    if (!reminders.weekdays.includes(weekday)) continue
+    if (!allowedDays.includes(weekday)) continue
     if (reminders.frequency === 'biweekly' && (weekIndex(year, month, day) + reminders.weekOffset) % 2 !== 0) continue
     if (reminders.frequency === 'monthly' && day > 7) continue
     const start = zonedToUtc(year, month, day, hour, minute, reminders.timezone)
@@ -80,13 +84,21 @@ export function planSlots(reminders: ReminderSettings, areas: Area[], progress: 
   for (const area of active) {
     const item = progress.find((entry) => entry.area_id === area.id)
     const time = item ? new Date(item.updated_at).getTime() : NaN
-    last.set(area.id, Number.isNaN(time) ? -Infinity : time)
+    last.set(area.id, Number.isNaN(time) ? now - effectiveInterval(area) * DAY : time)
   }
-  return upcomingSlots(reminders, now, count).map((slot) => {
+  const demand = Math.min(MAX_WEEKLY_SESSIONS, active.reduce((sum, area) => sum + weeklyDemand(area), 0))
+  // Zusätzliche Wochentage werden deterministisch ergänzt; vorhandene bleiben bevorzugt.
+  const weekdays = [...reminders.weekdays]
+  for (const day of [1, 3, 5, 2, 4, 6, 0]) {
+    if (weekdays.length >= demand) break
+    if (!weekdays.includes(day)) weekdays.push(day)
+  }
+  const adapted = demand ? { ...reminders, weekdays, frequency: 'weekly' as const } : reminders
+  return upcomingSlots(adapted, now, count).map((slot) => {
     let best = active[0]
     let bestScore = -Infinity
     for (const area of active) {
-      const score = (slot.start.getTime() - (last.get(area.id) ?? -Infinity)) / (area.intervalDays * DAY)
+      const score = (slot.start.getTime() - (last.get(area.id) ?? -Infinity)) / (effectiveInterval(area) * DAY)
       if (score > bestScore) { best = area; bestScore = score }
     }
     last.set(best.id, slot.start.getTime())
