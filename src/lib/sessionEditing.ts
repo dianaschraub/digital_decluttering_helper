@@ -1,3 +1,4 @@
+import { syncSessionStock, validateRemaining } from './sessionStock'
 import type { AppData, CleaningSession } from '../types'
 
 /** Korrigiert eine bestehende Einheit, ohne eine neue Sitzung oder ein neues Abschlussdatum zu erzeugen. */
@@ -17,6 +18,7 @@ export function editSession(data: AppData, sessionId: string, input: Record<stri
   if (typeof input.note !== 'string' || input.note.length > 1000) throw new Error('Die Notiz darf höchstens 1.000 Zeichen enthalten.')
   const updated: CleaningSession = {
     ...session,
+    ...validateRemaining(input, session),
     duration_minutes: integer(input.durationMinutes, 1, 600),
     deleted_count: integer(input.deletedCount, 0, 1e9),
     sorted_count: integer(input.sortedCount, 0, 1e9),
@@ -25,6 +27,7 @@ export function editSession(data: AppData, sessionId: string, input: Record<stri
     progress_value: value,
     note: input.note.trim() || null,
   }
+  syncSessionStock(data, updated)
   data.sessions = data.sessions.map((item) => item.id === sessionId ? updated : item)
   const latest = data.sessions.filter((item) => item.area_id === session.area_id)
     .reduce((best, item) => item.finished_at >= best.finished_at ? item : best)
@@ -34,7 +37,7 @@ export function editSession(data: AppData, sessionId: string, input: Record<stri
     progress.progress_type = type
     progress.progress_value = value
     progress.note = updated.note ?? null
-    return { session: updated, progress }
+    return { session: updated, progress, settings: data.settings }
   }
-  return { session: updated, progress: null }
+  return { session: updated, progress: null, settings: data.settings }
 }

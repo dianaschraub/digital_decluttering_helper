@@ -1,6 +1,7 @@
 import { admin, getUser, verifyRequestOrigin } from '@netlify/identity'
 import type { User } from '@netlify/identity'
 import type { Context } from '@netlify/functions'
+import { syncSessionStock, validateRemaining } from '../../src/lib/sessionStock'
 import { editSession } from '../../src/lib/sessionEditing'
 import { sanitizeSettings, withDefaults } from '../../src/lib/settingsSchema'
 import type { AppData, CleaningSession, CleaningTask, Progress, WeeklyCheck } from '../../src/types'
@@ -177,7 +178,7 @@ export default async (request: Request, _context: Context) => {
         if (!area || !data.settings) throw new HttpError(400, 'Diesen aktiven Bereich gibt es nicht.')
         const measurement = { date, value, unit: unit as 'count' | 'MB' | 'GB' }
         // Pro Tag und Messart nur ein Wert; Korrekturen zählen nicht als erneutes Wachstum.
-        area.stock = [...(area.stock ?? []).filter((item) => item.date !== date || (item.unit === 'count') !== (unit === 'count')), measurement]
+        area.stock = [...(area.stock ?? []).filter((item) => item.sessionId || item.date !== date || (item.unit === 'count') !== (unit === 'count')), measurement]
           .sort((a, b) => a.date.localeCompare(b.date)).slice(-100)
         area.adaptive = payload.adaptive as boolean
         area.stockGoal = payload.stockGoal === undefined ? (area.stockGoal ?? 'maintain') : payload.stockGoal as 'maintain' | 'reduce'
@@ -201,6 +202,9 @@ export default async (request: Request, _context: Context) => {
       const areaId = requireText(payload.areaId, 'Bereich', 48)
       const progressValue = isoDate(payload.progressValue, progressType === 'date' ? /^\d{4}-\d{2}-\d{2}$/ : /^\d{4}-\d{2}$/, 'Bearbeitungsstand')
       const countsRaw = payload.counts && typeof payload.counts === 'object' ? payload.counts as Record<string, unknown> : {}
+      let remaining
+      try { remaining = validateRemaining(payload) }
+      catch (error) { throw new HttpError(400, error instanceof Error ? error.message : 'Ungültiger Restbestand.') }
       const now = new Date().toISOString()
       const result = await updateUserData(userId, (data) => {
         if (!data.settings?.areas.some((area) => area.id === areaId)) throw new HttpError(400, 'Diesen Bereich gibt es nicht.')
@@ -213,13 +217,15 @@ export default async (request: Request, _context: Context) => {
         const session: CleaningSession = {
           id: crypto.randomUUID(), user_id: userId, area_id: areaId, finished_at: now,
           note: optionalText(payload.note, 1000) || null,
+          ...remaining,
           duration_minutes: Math.min(600, Math.max(1, safeInteger(payload.durationMinutes, 20))),
           deleted_count: safeInteger(countsRaw.deleted), sorted_count: safeInteger(countsRaw.sorted), quick_done_count: safeInteger(countsRaw.quickDone),
           progress_type: progressType, progress_value: progressValue,
         }
         data.progress = [progress, ...data.progress.filter((item) => item.area_id !== areaId)]
         data.sessions.push(session)
-        return { progress, session }
+        syncSessionStock(data, session)
+        return { progress, session, settings: data.settings }
       })
       return json(result)
     }

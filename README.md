@@ -10,6 +10,7 @@ Eine mobile Web-App, mit der man Fotos, Screenshots, Downloads, Ordner und E-Mai
 - **Von alt nach neu:** Pro Bereich lässt sich eintragen, ab welchem Monat es Daten gibt (z. B. seit es das Handy gibt). Dort beginnt das Aufräumen; die App zeigt den ganzen Rückstand schon vor der ersten Einheit und schlägt beim Speichern nie „heute“ vor, sondern den bisherigen Stand bzw. den Startmonat
 - 20-Minuten-Timer mit Fortschrittsring, der auch beim Wechsel in die Foto- oder Mail-App und nach einem Neuladen weiterläuft
 - Spickkarte mit der Entscheidungsregel und den eigenen Ablageorten – gearbeitet wird direkt in der Foto-, Datei- oder Mail-App, ohne Mitklicken
+- Beim Abschließen und nachträglichen Bearbeiten einer Sitzung: freiwillig den gesamten verbleibenden Bestand als Anzahl und/oder belegten Speicher in MB/GB eintragen. Der Verlauf zeigt Zu-/Abnahme gegenüber der vorherigen Sitzung mit einem Wert derselben Art. Zwei Sitzungen am selben Tag bleiben getrennt; eine Korrektur ersetzt nur den Messpunkt dieser Sitzung. Die Werte fließen unabhängig in die automatische Kalenderplanung und die CSV-Sicherung ein.
 - nach jeder Einheit zeigt die App den geschafften Zeitraum, z. B. „3 Monate aufgeräumt“; grobe Zahlen sind freiwillig
 - **Nächste Handlungen** als Aufgaben mit Wiedervorlage und Anhang (bis 4 MB)
 - **Teilen-Knopf** bei Aufgaben – etwa in Google Notizen (Keep); am Computer wird der Text kopiert

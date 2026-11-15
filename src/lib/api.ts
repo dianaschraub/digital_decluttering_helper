@@ -78,8 +78,10 @@ export async function finishCleaningSession(input: {
   progressType: ProgressType
   progressValue: string
   note?: string
+  remaining_count?: number | null
+  remaining_storage?: { value: number; unit: 'MB' | 'GB' } | null
 }) {
-  return post<{ progress: Progress; session: CleaningSession }>('finish_session', input)
+  return post<{ progress: Progress; session: CleaningSession; settings: UserSettings | null }>('finish_session', input)
 }
 
 export async function createTask(draft: TaskDraft) {
@@ -120,8 +122,10 @@ export async function saveWeeklyCheck(note: string) {
 }
 
 export async function updateCleaningSession(session: CleaningSession) {
-  return post<{ session: CleaningSession; progress: Progress | null }>('edit_session', {
+  return post<{ session: CleaningSession; progress: Progress | null; settings: UserSettings | null }>('edit_session', {
     sessionId: session.id,
+    remaining_count: session.remaining_count ?? null,
+    remaining_storage: session.remaining_storage ?? null,
     durationMinutes: session.duration_minutes,
     deletedCount: session.deleted_count,
     sortedCount: session.sorted_count,

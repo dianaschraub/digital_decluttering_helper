@@ -10,10 +10,12 @@ import { exportCsv } from '../lib/export'
 import { formatClock, useCleaningSession } from '../hooks/useCleaningSession'
 import { SettingsProvider, useSettings } from '../lib/settingsContext'
 import { shareTask } from '../lib/share'
-import type { AppData, AppView, Area, CleaningSession, CleaningTask, Progress, ProgressType, SyncState, TaskDraft, UserSettings, WeeklyCheck } from '../types'
+import type { RemainingStock, AppData, AppView, Area, CleaningSession, CleaningTask, Progress, ProgressType, SyncState, TaskDraft, UserSettings, WeeklyCheck } from '../types'
 import { Onboarding } from './Onboarding'
 import { SettingsView } from './SettingsView'
 import { AreasView } from './AreasView'
+import { RemainingStockFields } from './RemainingStockFields'
+import { stockCountLabel } from '../lib/stock'
 import { HistoryView } from './HistoryView'
 import { TasksView } from './TasksView'
 import { TodayView } from './TodayView'
@@ -86,9 +88,8 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
   const [progressType, setProgressType] = useState<ProgressType>('month')
   const [progressValue, setProgressValue] = useState('')
   const [progressNote, setProgressNote] = useState('')
-  // Freiwillige, grob geschätzte Zahlen – leer lassen ist ausdrücklich in Ordnung.
-  const [roughDeleted, setRoughDeleted] = useState('')
-  const [roughSorted, setRoughSorted] = useState('')
+  // Freiwilliger Gesamtbestand nach dieser Sitzung; leer ist nicht gleich null.
+  const [remaining, setRemaining] = useState<RemainingStock>({})
   const [taskDraft, setTaskDraft] = useState<TaskDraft>(EMPTY_TASK)
   const [busy, setBusy] = useState(false)
   const [weeklyNote, setWeeklyNote] = useState('')
@@ -171,17 +172,13 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
     if (areaId === session.areaId) return
     if (session.progress > 0 && !window.confirm('Die laufende Einheit ist noch nicht gespeichert. Trotzdem den Bereich wechseln?')) return
     session.switchArea(areaId)
+    setRemaining({})
     setTimeUp(false)
     fillProgressForm(progress.find((item) => item.area_id === areaId), findArea(areaId))
   }
 
   const previousPoint = areaPoint(selectedProgress, selectedArea.startMonth)
   const covered = progressValue ? coveredPeriod(previousPoint, { type: progressType, value: progressValue }) : null
-
-  function roughNumber(value: string) {
-    const parsed = Number.parseInt(value, 10)
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
-  }
 
   async function saveSession(event: React.FormEvent) {
     event.preventDefault()
@@ -195,7 +192,8 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
     const result = await withSync(() => finishCleaningSession({
       areaId: selectedArea.id,
       durationMinutes: session.elapsedMinutes,
-      counts: { deleted: roughNumber(roughDeleted), sorted: roughNumber(roughSorted), quickDone: 0 },
+      counts: { deleted: 0, sorted: 0, quickDone: 0 },
+      ...remaining,
       progressType,
       progressValue,
       note: progressNote,
@@ -204,10 +202,10 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
     if (!result) return
     setProgress((items) => [result.progress, ...items.filter((item) => item.area_id !== selectedArea.id)])
     setSessions((items) => [result.session, ...items])
+    if (result.settings) onSettingsSaved(result.settings)
     setFinishOpen(false)
     setProgressNote('')
-    setRoughDeleted('')
-    setRoughSorted('')
+    setRemaining({})
     setTimeUp(false)
     session.clear()
     const options = MEMOS[selectedArea.kind]
@@ -356,6 +354,7 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
             const result = await updateCleaningSession(edited)
             setSessions((items) => items.map((item) => item.id === result.session.id ? result.session : item))
             if (result.progress) setProgress((items) => items.map((item) => item.area_id === result.progress!.area_id ? result.progress! : item))
+            if (result.settings) onSettingsSaved(result.settings)
             setNotice('Sitzung aktualisiert.')
           }}
           onExport={() => exportCsv({ progress, sessions, tasks, checks }, findArea)}
@@ -399,13 +398,7 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
             <strong>{covered.days > 0 ? `${covered.amount} aufgeräumt` : covered.range}</strong>
             {covered.days > 0 && <small>{covered.range}</small>}
           </div>}
-          <details className="rough-counts">
-            <summary>Zahlen ergänzen <span className="optional">freiwillig, grob geschätzt</span></summary>
-            <div className="rough-grid">
-              <label>ca. gelöscht<input type="number" inputMode="numeric" min={0} value={roughDeleted} onChange={(event) => setRoughDeleted(event.target.value)} placeholder="–" /></label>
-              <label>ca. {selectedArea.kind === 'email' ? 'archiviert' : 'einsortiert'}<input type="number" inputMode="numeric" min={0} value={roughSorted} onChange={(event) => setRoughSorted(event.target.value)} placeholder="–" /></label>
-            </div>
-          </details>
+          <RemainingStockFields value={remaining} label={stockCountLabel(selectedArea)} onChange={(patch) => setRemaining((current) => ({ ...current, ...patch }))} />
           <button className="button primary full" disabled={busy}>{busy ? 'Wird gespeichert …' : 'Stand speichern'}</button>
         </form>
       </Modal>}

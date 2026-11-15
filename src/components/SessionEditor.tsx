@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { CleaningSession } from '../types'
 import { todayIso } from '../lib/dates'
+import { RemainingStockFields } from './RemainingStockFields'
 import { Modal } from './ui'
 
-export function SessionEditor({ session, onClose, onSave }: {
+export function SessionEditor({ session, onClose, onSave, countLabel }: {
+  countLabel?: string
   session: CleaningSession
   onClose: () => void
   onSave: (session: CleaningSession) => Promise<void>
@@ -26,9 +28,7 @@ export function SessionEditor({ session, onClose, onSave }: {
         <label>Dauer in Minuten<input type="number" required min="1" max="600" step="1" value={Number.isNaN(draft.duration_minutes) ? '' : draft.duration_minutes} onChange={(event) => change({ duration_minutes: event.target.value === '' ? NaN : Number(event.target.value) })} /></label>
         <label>Stand angeben als<select value={draft.progress_type} onChange={(event) => change({ progress_type: event.target.value as 'month' | 'date', progress_value: event.target.value === 'month' ? draft.progress_value.slice(0, 7) : `${draft.progress_value}-01` })}><option value="month">Monat</option><option value="date">Genaues Datum</option></select></label>
         <label>Vollständig geprüft bis<input required type={draft.progress_type} max={draft.progress_type === 'month' ? todayIso().slice(0, 7) : todayIso()} value={draft.progress_value} onChange={(event) => change({ progress_value: event.target.value })} /></label>
-        <div className="field-row">
-          {([{ key: 'deleted_count', label: 'ca. gelöscht' }, { key: 'sorted_count', label: 'ca. einsortiert / archiviert' }, { key: 'quick_done_count', label: 'erledigt' }] as const).map(({ key, label }) => <label key={key}>{label}<input required type="number" min="0" max="1000000000" step="1" value={Number.isNaN(draft[key]) ? '' : draft[key]} onChange={(event) => change({ [key]: event.target.value === '' ? NaN : Number(event.target.value) })} /></label>)}
-        </div>
+        <RemainingStockFields label={countLabel} value={draft} onChange={change} />
         <label>Notiz (optional)<textarea aria-label="Notiz zur Sitzung" maxLength={1000} rows={3} value={draft.note ?? ''} onChange={(event) => change({ note: event.target.value })} /></label>
       </fieldset>
       {error && <p role="alert">{error}</p>}

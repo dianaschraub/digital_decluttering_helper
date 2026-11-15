@@ -1,5 +1,7 @@
 import { Check, Download, Pencil } from 'lucide-react'
 import { useState } from 'react'
+import { remainingChanges } from '../lib/sessionStock'
+import { stockCountLabel } from '../lib/stock'
 import { SessionEditor } from './SessionEditor'
 import { useSettings } from '../lib/settingsContext'
 import { coveredPeriod, formatDate, formatSpan, startPoint } from '../lib/dates'
@@ -45,20 +47,23 @@ export function HistoryView(props: {
           : <span className="last-check">Zuletzt: {formatDate(props.checks[0]?.checked_at, true)}</span>}
       </section>
 
-      {editing && <SessionEditor session={editing} onClose={() => setEditing(null)} onSave={props.onEdit} />}
+      {editing && <SessionEditor countLabel={findArea(editing.area_id) ? stockCountLabel(findArea(editing.area_id)!) : 'Objekte'} session={editing} onClose={() => setEditing(null)} onSave={props.onEdit} />}
       <div className="history-list">
         <h2>Letzte Cleaning-Einheiten</h2>
         {props.sessions.length === 0 && <p className="muted">Noch keine Einheit gespeichert.</p>}
         {props.sessions.map((session) => {
           const area = findArea(session.area_id)
           const period = covered.get(session.id)
-          const hasCounts = session.deleted_count + session.sorted_count + session.quick_done_count > 0
+          const changes = remainingChanges(session, props.sessions)
+          const changeText = (amount: number | null, unit: string) => amount === null ? 'Noch kein Vergleichswert aus einer früheren Sitzung' : Math.abs(amount) < 0.000001 ? 'Gleich geblieben' : `${Math.abs(amount).toLocaleString('de-DE', { maximumFractionDigits: 3 })} ${unit} ${amount > 0 ? 'mehr' : 'weniger'} als zuvor`
           return (
             <article key={session.id}>
               {area && <AreaSign area={area} size="small" />}
               <div>
                 <strong>{area?.title ?? session.area_id} <small>{area?.subtitle}</small></strong>
                 <p>{formatDate(session.finished_at, true)} · {session.duration_minutes} Min. · {period?.range}</p>
+                {session.remaining_count != null && <p><strong>Noch {session.remaining_count.toLocaleString('de-DE')} {area ? stockCountLabel(area) : 'Objekte'}</strong> · {changeText(changes.count, area ? stockCountLabel(area) : 'Objekte')}</p>}
+                {session.remaining_storage && <p><strong>Noch {session.remaining_storage.value.toLocaleString('de-DE')} {session.remaining_storage.unit} belegt</strong> · {changeText(changes.storageMB, 'MB')}</p>}
                 {session.note && <p style={{ whiteSpace: 'pre-wrap' }}>{session.note}</p>}
               </div>
               <div className="history-counts">
@@ -68,9 +73,6 @@ export function HistoryView(props: {
                   setEditing({ ...session, note })
                 }} aria-label={`Sitzung vom ${formatDate(session.finished_at, true)} bearbeiten`}><Pencil size={15} /> Bearbeiten</button>
                 {period && period.days > 0 && <span className="covered">{period.amount}</span>}
-                {hasCounts && session.deleted_count > 0 && <span>ca. {session.deleted_count} gelöscht</span>}
-                {hasCounts && session.sorted_count > 0 && <span>ca. {session.sorted_count} einsortiert</span>}
-                {session.quick_done_count > 0 && <span>{session.quick_done_count} erledigt</span>}
               </div>
             </article>
           )

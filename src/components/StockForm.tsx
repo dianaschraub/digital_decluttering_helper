@@ -41,6 +41,6 @@ export function StockForm({ area, onSaved }: { area: Area; onSaved: (settings: U
     {area.adaptive && demand > 0 && <p className="hint-box">Erhöhter Bedarf: {demand} Einheiten/Woche für diesen Bereich, verteilt innerhalb der gemeinsamen Obergrenze.</p>}
     <button className="button secondary" disabled={busy}>{busy ? 'Speichert …' : 'Bestand speichern'}</button>
     {message && <p role="status">{message}</p>}
-    {!!area.stock?.length && <details><summary>Messverlauf ({area.stock.length})</summary><ul>{[...area.stock].reverse().map((item) => <li key={`${item.date}-${item.unit}`}>{item.date}: {item.value.toLocaleString('de-DE')} {item.unit === 'count' ? stockCountLabel(area) : item.unit}</li>)}</ul></details>}
+    {!!area.stock?.length && <details><summary>Messverlauf ({area.stock.length})</summary><ul>{[...area.stock].reverse().map((item, index) => <li key={`${item.sessionId ?? item.date}-${item.unit}-${index}`}>{item.date}: {item.value.toLocaleString('de-DE')} {item.unit === 'count' ? stockCountLabel(area) : item.unit}</li>)}</ul></details>}
   </form>
 }

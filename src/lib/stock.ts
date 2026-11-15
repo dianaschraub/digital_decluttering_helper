@@ -3,18 +3,18 @@ import type { Area, StockMeasurement } from '../types'
 export const MAX_WEEKLY_SESSIONS = 4
 
 /** Speichergrößen sind vergleichbar; Anzahlen bilden eine eigene Messreihe. */
-export function comparableStock(area: Area): StockMeasurement[] {
-  const entries = area.stock ?? []
+export function comparableStock(area: Area, kind?: 'count' | 'storage'): StockMeasurement[] {
+  const entries = [...(area.stock ?? [])].sort((a, b) => (a.recordedAt ?? a.date).localeCompare(b.recordedAt ?? b.date))
   const latest = entries.at(-1)
-  return latest ? entries.filter((item) => (item.unit === 'count') === (latest.unit === 'count')) : []
+  return latest ? entries.filter((item) => (item.unit === 'count') === (kind ? kind === 'count' : latest.unit === 'count')) : []
 }
 
 export function stockValue(item: StockMeasurement) {
   return item.unit === 'GB' ? item.value * 1000 : item.value
 }
 
-export function stockTrend(area: Area) {
-  const entries = comparableStock(area)
+export function stockTrend(area: Area, kind?: 'count' | 'storage') {
+  const entries = comparableStock(area, kind)
   const latest = entries.at(-1)
   const previous = entries.at(-2)
   if (!latest || !previous) return null
@@ -27,11 +27,15 @@ export function stockTrend(area: Area) {
 
 /** Beim Ziel Verkleinern zählt auch ein positiver, gleichbleibender Bestand als Handlungsbedarf. */
 export function weeklyDemand(area: Area) {
-  const trend = stockTrend(area)
+  return Math.max(demandForKind(area, 'count'), demandForKind(area, 'storage'))
+}
+
+function demandForKind(area: Area, kind: 'count' | 'storage') {
+  const trend = stockTrend(area, kind)
   if (!area.adaptive || !trend || trend.difference < 0) return 0
   const reduce = area.stockGoal === 'reduce'
   if (trend.difference === 0 && (!reduce || stockValue(trend.latest) === 0)) return 0
-  const entries = comparableStock(area)
+  const entries = comparableStock(area, kind)
   const before = entries.at(-3)
   const repeatedlyNotShrinking = reduce && !!before && stockValue(trend.previous) >= stockValue(before)
   return trend.repeated || repeatedlyNotShrinking ? 4 : trend.ratio >= 0.05 ? 3 : 2
@@ -44,7 +48,7 @@ export function effectiveInterval(area: Area) {
 
 /** Je Messart den jüngsten erfassten Bestand zeigen; 0 ist ein gültiger Bestand. */
 export function latestStockByKind(area: Area) {
-  const sorted = [...(area.stock ?? [])].sort((a, b) => a.date.localeCompare(b.date))
+  const sorted = [...(area.stock ?? [])].sort((a, b) => (a.recordedAt ?? a.date).localeCompare(b.recordedAt ?? b.date))
   return {
     count: sorted.filter((item) => item.unit === 'count').at(-1),
     storage: sorted.filter((item) => item.unit !== 'count').at(-1),

@@ -179,3 +179,43 @@ test('Verkleinern reagiert auf Stillstand, Halten nicht; leere und sinkende Best
   const slots = planSlots(s.reminders,s.areas,[],now,8)
   assert.equal(slots.filter((slot)=>slot.localDate <= '2026-11-15').length,4)
 })
+
+
+test('Restbestand pro Sitzung: beide Werte, zwei Sitzungen am gleichen Tag, MB/GB und Korrektur', () => {
+  const { syncSessionStock, validateRemaining, remainingChanges } = require('../src/lib/sessionStock.ts')
+  const first = { id:'first',area_id:'documents',finished_at:'2026-11-01T10:00:00Z',...validateRemaining({remaining_count:2000,remaining_storage:{value:2,unit:'GB'}}) }
+  const second = { id:'second',area_id:'documents',finished_at:'2026-11-01T11:00:00Z',...validateRemaining({remaining_count:2100,remaining_storage:{value:1800,unit:'MB'}}) }
+  const a = area([])
+  const data = {settings:settings([a]),sessions:[first,second]}
+  syncSessionStock(data,first);syncSessionStock(data,second)
+  assert.equal(a.stock.length,4)
+  assert.deepEqual(remainingChanges(second,[first,second]),{count:100,storageMB:-200})
+  assert.equal(weeklyDemand(a),3) // Anzahl wächst, obwohl Speicher sinkt.
+  second.remaining_count = 1900
+  syncSessionStock(data,second)
+  assert.equal(a.stock.length,4)
+  assert.equal(stockTrend(a,'count').difference,-100)
+  assert.equal(weeklyDemand(a),0)
+  syncSessionStock(data,first) // ältere Sitzung bearbeiten verschiebt sie nicht nach vorne
+  assert.equal(stockTrend(a,'count').latest.sessionId,'second')
+  assert.equal(remainingChanges(first,[first,second]).count,null)
+  assert.equal(validateRemaining({remaining_count:0}).remaining_count,0)
+  assert.equal(validateRemaining({}).remaining_count,null)
+  for (const input of [{remaining_count:-1},{remaining_count:1.5},{remaining_storage:{value:NaN,unit:'GB'}},{remaining_storage:{value:1,unit:'TB'}}]) assert.throws(()=>validateRemaining(input))
+})
+
+
+test('Restbestände nachträglich löschen entfernt nur die Messpunkte dieser Sitzung', () => {
+  const { editSession } = require('../src/lib/sessionEditing.ts')
+  const { syncSessionStock } = require('../src/lib/sessionStock.ts')
+  const session = { id:'s',area_id:'documents',finished_at:'2026-11-01T10:00:00Z',remaining_count:10,remaining_storage:{value:1,unit:'GB'} }
+  const a = area([])
+  const data = {settings:settings([a]),sessions:[session],progress:[]}
+  syncSessionStock(data,session)
+  a.stock.push({date:'2026-10-01',unit:'count',value:50})
+  const input = {durationMinutes:20,deletedCount:0,sortedCount:0,quickDoneCount:0,progressType:'month',progressValue:'2026-01',note:'',remaining_count:null,remaining_storage:null}
+  editSession(data,'s',input)
+  assert.equal(a.stock.length,1)
+  assert.equal(a.stock[0].value,50)
+  assert.equal(data.sessions[0].remaining_count,null)
+})

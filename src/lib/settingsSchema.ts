@@ -135,6 +135,7 @@ export function sanitizeSettings(input: unknown): UserSettings {
         const item = entry as StockMeasurement
         return typeof item.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.date)
           && typeof item.value === 'number' && Number.isFinite(item.value) && item.value >= 0
+          && (item.sessionId === undefined || typeof item.sessionId === 'string') && (item.recordedAt === undefined || (typeof item.recordedAt === 'string' && Number.isFinite(Date.parse(item.recordedAt))))
           && ['count', 'MB', 'GB'].includes(item.unit) && (item.unit !== 'count' || Number.isInteger(item.value))
       }).sort((a, b) => a.date.localeCompare(b.date)).slice(-100) : [],
     })

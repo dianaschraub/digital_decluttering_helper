@@ -26,6 +26,9 @@ export function exportCsv(data: {
     'Einsortiert',
     'Unter 2 Minuten erledigt',
     'Anhang',
+    'Restbestand Anzahl',
+    'Restbestand Speicher',
+    'Speichereinheit',
   ]]
 
   data.progress.forEach((item) => rows.push([
@@ -42,11 +45,14 @@ export function exportCsv(data: {
     areaName(item.area_id),
     item.finished_at,
     `${item.duration_minutes} Minuten`,
-    '',
+    item.note ?? '',
     item.deleted_count,
     item.sorted_count,
     item.quick_done_count,
     '',
+    item.remaining_count ?? '',
+    item.remaining_storage?.value ?? '',
+    item.remaining_storage?.unit ?? '',
   ]))
 
   data.tasks.forEach((item) => rows.push([
@@ -62,7 +68,7 @@ export function exportCsv(data: {
     'Wochencheck', '', item.checked_at, 'erledigt', item.note, '', '', '', '',
   ]))
 
-  const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(';')).join('\n')}`
+  const csv = `\uFEFF${rows.map((row) => Array.from({ length: rows[0].length }, (_, index) => row[index] ?? '').map(csvCell).join(';')).join('\n')}`
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')

@@ -5,7 +5,14 @@ export type ProgressType = 'month' | 'date'
 export type TaskStatus = 'open' | 'done'
 
 export type StockUnit = 'count' | 'MB' | 'GB'
+export interface RemainingStock {
+  remaining_count?: number | null
+  remaining_storage?: { value: number; unit: 'MB' | 'GB' } | null
+}
+
 export interface StockMeasurement {
+  sessionId?: string
+  recordedAt?: string
   date: string
   value: number
   unit: StockUnit
@@ -74,7 +81,7 @@ export interface Progress {
   updated_at: string
 }
 
-export interface CleaningSession {
+export interface CleaningSession extends RemainingStock {
   note?: string | null
   id: string
   user_id: string
