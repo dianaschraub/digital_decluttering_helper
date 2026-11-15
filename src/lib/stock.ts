@@ -36,3 +36,17 @@ export function effectiveInterval(area: Area) {
   const demand = weeklyDemand(area)
   return demand ? Math.min(area.intervalDays, 7 / demand) : area.intervalDays
 }
+
+/** Je Messart den jüngsten erfassten Bestand zeigen; 0 ist ein gültiger Bestand. */
+export function latestStockByKind(area: Area) {
+  const sorted = [...(area.stock ?? [])].sort((a, b) => a.date.localeCompare(b.date))
+  return {
+    count: sorted.filter((item) => item.unit === 'count').at(-1),
+    storage: sorted.filter((item) => item.unit !== 'count').at(-1),
+  }
+}
+
+export function stockCountLabel(area: Area) {
+  if (area.kind === 'email') return 'E-Mails'
+  return ({ photos: 'Fotos', screenshots: 'Screenshots', videos: 'Videos', documents: 'Dokumente' } as Partial<Record<Area['icon'], string>>)[area.icon] ?? 'Dateien'
+}

@@ -113,3 +113,19 @@ test('API validiert Bestände und korrigiert denselben Tag ohne Verlust anderer 
   assert.equal(current.settings.areas[0].stock.at(-1).value,120)
   assert.equal(current.settings.areas[0].adaptive,true)
 })
+
+
+test('Bestandsübersicht zeigt Anzahl und Speicher getrennt, nach Datum und einschließlich Null', () => {
+  const { latestStockByKind, stockCountLabel } = require('../src/lib/stock.ts')
+  const a = area([], { icon: 'photos', stock: [
+    { date: '2026-11-10', value: 0, unit: 'count' },
+    { date: '2026-11-09', value: 4.5, unit: 'GB' },
+    { date: '2026-11-01', value: 42, unit: 'count' },
+    { date: '2026-11-02', value: 800, unit: 'MB' },
+  ] })
+  assert.equal(latestStockByKind(a).count.value, 0)
+  assert.equal(latestStockByKind(a).storage.value, 4.5)
+  assert.equal(stockCountLabel(a), 'Fotos')
+  assert.equal(stockCountLabel({ ...a, icon: 'screenshots' }), 'Screenshots')
+  assert.equal(latestStockByKind(area()).count, undefined)
+})
