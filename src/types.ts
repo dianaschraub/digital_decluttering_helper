@@ -26,6 +26,7 @@ export interface Area {
   /** Monat „YYYY-MM“, ab dem es Daten gibt (z. B. seit es das Handy gibt). Dort beginnt das Aufräumen. */
   startMonth?: string
   adaptive?: boolean
+  stockGoal?: 'maintain' | 'reduce'
   stock?: StockMeasurement[]
 }
 

@@ -10,8 +10,8 @@ import type {
   WeeklyCheck,
 } from '../types'
 
-export async function recordStock(areaId: string, value: number, unit: 'count' | 'MB' | 'GB', date: string, adaptive: boolean) {
-  const result = await post<{ settings: UserSettings }>('record_stock', { areaId, value, unit, date, adaptive })
+export async function recordStock(areaId: string, value: number, unit: 'count' | 'MB' | 'GB', date: string, adaptive: boolean, stockGoal: 'maintain' | 'reduce' = 'maintain') {
+  const result = await post<{ settings: UserSettings }>('record_stock', { areaId, value, unit, date, adaptive, stockGoal })
   return result.settings
 }
 

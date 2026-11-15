@@ -129,6 +129,7 @@ export function sanitizeSettings(input: unknown): UserSettings {
       status: STATUSES.has(value.status as AreaStatus) ? value.status as AreaStatus : 'active',
       ...(startMonth ? { startMonth } : {}),
       adaptive: value.adaptive === true,
+      stockGoal: value.stockGoal === 'reduce' ? 'reduce' : 'maintain',
       stock: Array.isArray(value.stock) ? value.stock.filter((entry): entry is StockMeasurement => {
         if (!entry || typeof entry !== 'object') return false
         const item = entry as StockMeasurement

@@ -1,6 +1,6 @@
 import type { Area, StockMeasurement } from '../types'
 
-export const MAX_WEEKLY_SESSIONS = 5
+export const MAX_WEEKLY_SESSIONS = 4
 
 /** Speichergrößen sind vergleichbar; Anzahlen bilden eine eigene Messreihe. */
 export function comparableStock(area: Area): StockMeasurement[] {
@@ -25,11 +25,16 @@ export function stockTrend(area: Area) {
   return { latest, previous, difference, ratio, repeated }
 }
 
-/** Ein Anstieg: 2 Termine, ab 5 %: 3, wiederholtes Wachstum: bis zu 5. */
+/** Beim Ziel Verkleinern zählt auch ein positiver, gleichbleibender Bestand als Handlungsbedarf. */
 export function weeklyDemand(area: Area) {
   const trend = stockTrend(area)
-  if (!area.adaptive || !trend || trend.difference <= 0) return 0
-  return trend.repeated ? 5 : trend.ratio >= 0.05 ? 3 : 2
+  if (!area.adaptive || !trend || trend.difference < 0) return 0
+  const reduce = area.stockGoal === 'reduce'
+  if (trend.difference === 0 && (!reduce || stockValue(trend.latest) === 0)) return 0
+  const entries = comparableStock(area)
+  const before = entries.at(-3)
+  const repeatedlyNotShrinking = reduce && !!before && stockValue(trend.previous) >= stockValue(before)
+  return trend.repeated || repeatedlyNotShrinking ? 4 : trend.ratio >= 0.05 ? 3 : 2
 }
 
 export function effectiveInterval(area: Area) {

@@ -15,7 +15,7 @@ test('Wachstum erhöht Bedarf; stabile/sinkende Bestände und deaktivierte Autom
   assert.equal(weeklyDemand(area([100])), 0)
   assert.equal(weeklyDemand(area([100, 101])), 2)
   assert.equal(weeklyDemand(area([100, 105])), 3)
-  assert.equal(weeklyDemand(area([100, 101, 102])), 5)
+  assert.equal(weeklyDemand(area([100, 101, 102])), 4)
   assert.equal(weeklyDemand(area([100, 110, 110])), 0)
   assert.equal(weeklyDemand(area([100, 110, 90])), 0)
   assert.equal(weeklyDemand(area([0, 1])), 3)
@@ -30,7 +30,7 @@ test('MB/GB werden verglichen, Anzahlen nicht mit Speichergrößen', () => {
   assert.equal(stockTrend(a), null)
 })
 
-test('Gemeinsame Obergrenze 5 pro Montag–Sonntag-Woche, auch bei sieben Grundtagen und vielen Rubriken', () => {
+test('Gemeinsame Obergrenze 4 pro Montag–Sonntag-Woche, auch bei sieben Grundtagen und vielen Rubriken', () => {
   const areas = [area([100, 101, 102]), area([20, 30, 40], { id: 'photos', title: 'Fotos' })]
   for (const weekdays of [[3], [0, 1, 2, 3, 4, 5, 6]]) {
     const s = settings(areas, { weekdays })
@@ -41,7 +41,7 @@ test('Gemeinsame Obergrenze 5 pro Montag–Sonntag-Woche, auch bei sieben Grundt
       const monday = new Date(day.getTime() - ((day.getUTCDay() + 6) % 7) * 86400000).toISOString().slice(0, 10)
       weeks.set(monday, (weeks.get(monday) || 0) + 1)
     }
-    assert.equal(Math.max(...weeks.values()), 5)
+    assert.equal(Math.max(...weeks.values()), 4)
     assert.ok(slots.some((slot) => slot.area.id === 'photos'))
     assert.ok(slots.some((slot) => slot.area.id === 'documents'))
     assert.equal(new Set(slots.map((slot) => slot.localDate)).size, slots.length)
@@ -85,7 +85,7 @@ test('Obergrenze bleibt beim Kalenderabgleich mitten in derselben Woche stabil',
   const thursdayPlan = planSlots(s.reminders, s.areas, [], now + 3 * 86400000, 20)
   const weekEnd = '2026-11-15'
   const combined = new Set([...mondayPlan, ...thursdayPlan].filter((slot) => slot.localDate <= weekEnd).map((slot) => slot.localDate))
-  assert.equal(combined.size, 5)
+  assert.equal(combined.size, 4)
 })
 
 test('API validiert Bestände und korrigiert denselben Tag ohne Verlust anderer Rubriken', async () => {
@@ -101,8 +101,8 @@ test('API validiert Bestände und korrigiert denselben Tag ohne Verlust anderer 
   const handler = require('../netlify/functions/app-data.ts').default
   Module._load = original
   const send = (action, payload) => handler(new Request('https://example.com/.netlify/functions/app-data', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,payload})}), {})
-  const payload = { areaId: 'documents', value: 110, unit: 'count', date: '2026-11-02', adaptive: true }
-  for (const patch of [{value:-1},{value:1.5},{value:null},{unit:'TB'},{date:'2026-02-31'},{date:'2099-01-01'},{areaId:'unknown'}]) assert.equal((await send('record_stock',{...payload,...patch})).status,400)
+  const payload = { areaId: 'documents', value: 110, unit: 'count', date: '2026-11-02', adaptive: true, stockGoal: 'reduce' }
+  for (const patch of [{value:-1},{value:1.5},{value:null},{unit:'TB'},{date:'2026-02-31'},{date:'2099-01-01'},{areaId:'unknown'},{stockGoal:'invalid'}]) assert.equal((await send('record_stock',{...payload,...patch})).status,400)
   assert.equal((await send('record_stock',payload)).status,200)
   assert.equal((await send('record_stock',{...payload,value:120})).status,200)
   assert.equal(current.settings.areas[0].stock.length,2)
@@ -112,6 +112,7 @@ test('API validiert Bestände und korrigiert denselben Tag ohne Verlust anderer 
   assert.equal((await send('save_settings',{settings:stale})).status,200)
   assert.equal(current.settings.areas[0].stock.at(-1).value,120)
   assert.equal(current.settings.areas[0].adaptive,true)
+  assert.equal(current.settings.areas[0].stockGoal,'reduce')
 })
 
 
@@ -160,4 +161,21 @@ test('Sitzung bearbeiten lehnt ungültige Daten ab und verändert dabei nichts',
     assert.equal(JSON.stringify(data),before)
   }
   assert.throws(()=>editSession(data,'unknown',input))
+})
+
+
+test('Verkleinern reagiert auf Stillstand, Halten nicht; leere und sinkende Bestände entlasten', () => {
+  const shrink = (values) => area(values, { stockGoal: 'reduce' })
+  assert.equal(weeklyDemand(shrink([100])), 0)
+  assert.equal(weeklyDemand(shrink([100, 100])), 2)
+  assert.equal(weeklyDemand(shrink([100, 100, 100])), 4)
+  assert.equal(weeklyDemand(shrink([100, 110, 110])), 4)
+  assert.equal(weeklyDemand(shrink([100, 90, 90])), 2)
+  assert.equal(weeklyDemand(shrink([100, 100, 90])), 0)
+  assert.equal(weeklyDemand(shrink([0, 0, 0])), 0)
+  assert.equal(weeklyDemand(area([100,100], {stockGoal:'maintain'})), 0)
+  assert.equal(weeklyDemand(area([100,100], {stockGoal:'reduce',adaptive:false})), 0)
+  const s = settings([shrink([100,100,100])])
+  const slots = planSlots(s.reminders,s.areas,[],now,8)
+  assert.equal(slots.filter((slot)=>slot.localDate <= '2026-11-15').length,4)
 })

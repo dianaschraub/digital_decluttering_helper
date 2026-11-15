@@ -10,6 +10,7 @@ export function StockForm({ area, onSaved }: { area: Area; onSaved: (settings: U
   const [unit, setUnit] = useState<StockUnit>(area.stock?.at(-1)?.unit ?? 'count')
   const [date, setDate] = useState(todayIso())
   const [adaptive, setAdaptive] = useState(area.adaptive ?? false)
+  const [stockGoal, setStockGoal] = useState<'maintain' | 'reduce'>(area.stockGoal ?? 'maintain')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const trend = stockTrend(area)
@@ -20,7 +21,7 @@ export function StockForm({ area, onSaved }: { area: Area; onSaved: (settings: U
     if (busy) return
     setBusy(true); setMessage('')
     try {
-      onSaved(await recordStock(area.id, Number(value.replace(',', '.')), unit, date, adaptive))
+      onSaved(await recordStock(area.id, Number(value.replace(',', '.')), unit, date, adaptive, stockGoal))
       setValue(''); setMessage('Bestand gespeichert. Die Kalenderplanung wurde aktualisiert.')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Speichern fehlgeschlagen.') }
     finally { setBusy(false) }
@@ -34,8 +35,9 @@ export function StockForm({ area, onSaved }: { area: Area; onSaved: (settings: U
       <label>Einheit<select value={unit} onChange={(event) => setUnit(event.target.value as StockUnit)}><option value="count">Anzahl {stockCountLabel(area)}</option><option value="MB">MB</option><option value="GB">GB</option></select></label>
       <label>Messdatum<input required type="date" max={todayIso()} value={date} onChange={(event) => setDate(event.target.value)} /></label>
     </div>
-    <label className="switch-row"><input type="checkbox" checked={adaptive} onChange={(event) => setAdaptive(event.target.checked)} /><span>Bei Wachstum automatisch häufiger aufräumen</span></label>
-    <p className="small muted">Ein Anstieg: 2 Einheiten/Woche, ab 5 %: 3, bei zwei Anstiegen hintereinander: 5. Insgesamt höchstens 5 Termine/Woche für alle Rubriken. Zusätzliche Tage werden zur gewählten Uhrzeit ergänzt. Bei stabilem oder sinkendem Bestand gilt wieder dein normaler Rhythmus.</p>
+    <label className="switch-row"><input type="checkbox" checked={adaptive} onChange={(event) => setAdaptive(event.target.checked)} /><span>Aufräumtermine automatisch an den Bestand anpassen</span></label>
+    <label>Mein Ziel für diesen Bereich<select value={stockGoal} onChange={(event) => setStockGoal(event.target.value as 'maintain' | 'reduce')}><option value="maintain">Bestand halten</option><option value="reduce">Bestand verkleinern</option></select></label>
+    <p className="small muted">{stockGoal === 'reduce' ? 'Auch ein gleichbleibender Bestand über null führt zu häufigeren Terminen: zunächst 2, bei zweimal hintereinander nicht gesunkenem Bestand bis zu 4 Einheiten pro Woche. Sinkt der Bestand, gilt wieder dein normaler Rhythmus.' : 'Bei Wachstum: 2 Einheiten pro Woche, ab 5 %: 3, bei wiederholtem Wachstum bis zu 4. Bei stabilem oder sinkendem Bestand gilt dein normaler Rhythmus.'} Insgesamt höchstens 4 Termine pro Woche für alle Rubriken. Zusätzliche Tage werden zur gewählten Uhrzeit ergänzt. Ziel und Automatik werden mit „Bestand speichern“ übernommen.</p>
     {area.adaptive && demand > 0 && <p className="hint-box">Erhöhter Bedarf: {demand} Einheiten/Woche für diesen Bereich, verteilt innerhalb der gemeinsamen Obergrenze.</p>}
     <button className="button secondary" disabled={busy}>{busy ? 'Speichert …' : 'Bestand speichern'}</button>
     {message && <p role="status">{message}</p>}

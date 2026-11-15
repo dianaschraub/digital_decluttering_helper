@@ -152,7 +152,7 @@ export default async (request: Request, _context: Context) => {
         // Einstellungen dürfen neuere Messwerte von einem anderen Gerät nicht überschreiben.
         settings.areas = settings.areas.map((area) => {
           const current = data.settings?.areas.find((item) => item.id === area.id)
-          return { ...area, stock: current?.stock ?? [], adaptive: current?.adaptive ?? false }
+          return { ...area, stock: current?.stock ?? [], adaptive: current?.adaptive ?? false, stockGoal: current?.stockGoal ?? 'maintain' }
         })
         data.settings = settings
         return settings
@@ -162,6 +162,7 @@ export default async (request: Request, _context: Context) => {
 
     if (action === 'record_stock') {
       const areaId = requireText(payload.areaId, 'Bereich', 48)
+      if (payload.stockGoal !== undefined && payload.stockGoal !== 'maintain' && payload.stockGoal !== 'reduce') throw new HttpError(400, 'Ungültiges Bestandsziel.')
       const unit = payload.unit
       const value = payload.value
       if (!['count', 'MB', 'GB'].includes(String(unit)) || typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1e12 || (unit === 'count' && !Number.isInteger(value)) || typeof payload.adaptive !== 'boolean') {
@@ -179,6 +180,7 @@ export default async (request: Request, _context: Context) => {
         area.stock = [...(area.stock ?? []).filter((item) => item.date !== date || (item.unit === 'count') !== (unit === 'count')), measurement]
           .sort((a, b) => a.date.localeCompare(b.date)).slice(-100)
         area.adaptive = payload.adaptive as boolean
+        area.stockGoal = payload.stockGoal === undefined ? (area.stockGoal ?? 'maintain') : payload.stockGoal as 'maintain' | 'reduce'
         return data.settings
       })
       return json({ settings })
