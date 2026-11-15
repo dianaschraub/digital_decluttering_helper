@@ -1,6 +1,7 @@
 import { admin, getUser, verifyRequestOrigin } from '@netlify/identity'
 import type { User } from '@netlify/identity'
 import type { Context } from '@netlify/functions'
+import { editSession } from '../../src/lib/sessionEditing'
 import { sanitizeSettings, withDefaults } from '../../src/lib/settingsSchema'
 import type { AppData, CleaningSession, CleaningTask, Progress, WeeklyCheck } from '../../src/types'
 import { LEGACY_SETTINGS, readLegacySheet } from './_shared/legacySheet'
@@ -183,6 +184,16 @@ export default async (request: Request, _context: Context) => {
       return json({ settings })
     }
 
+    if (action === 'edit_session') {
+      const sessionId = requireText(payload.sessionId, 'Sitzung', 80)
+      const result = await updateUserData(userId, (data) => {
+        if (!data.sessions.some((session) => session.id === sessionId)) throw new HttpError(404, 'Diese Sitzung wurde nicht gefunden.')
+        try { return editSession(data, sessionId, payload) }
+        catch (error) { throw new HttpError(400, error instanceof Error ? error.message : 'Ungültige Angaben.') }
+      })
+      return json(result)
+    }
+
     if (action === 'finish_session') {
       const progressType = payload.progressType === 'date' ? 'date' : 'month'
       const areaId = requireText(payload.areaId, 'Bereich', 48)
@@ -199,6 +210,7 @@ export default async (request: Request, _context: Context) => {
         }
         const session: CleaningSession = {
           id: crypto.randomUUID(), user_id: userId, area_id: areaId, finished_at: now,
+          note: optionalText(payload.note, 1000) || null,
           duration_minutes: Math.min(600, Math.max(1, safeInteger(payload.durationMinutes, 20))),
           deleted_count: safeInteger(countsRaw.deleted), sorted_count: safeInteger(countsRaw.sorted), quick_done_count: safeInteger(countsRaw.quickDone),
           progress_type: progressType, progress_value: progressValue,

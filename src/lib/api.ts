@@ -118,3 +118,16 @@ export function openAttachment(task: CleaningTask) {
 export async function saveWeeklyCheck(note: string) {
   return post<WeeklyCheck>('weekly_check', { note: note.trim() })
 }
+
+export async function updateCleaningSession(session: CleaningSession) {
+  return post<{ session: CleaningSession; progress: Progress | null }>('edit_session', {
+    sessionId: session.id,
+    durationMinutes: session.duration_minutes,
+    deletedCount: session.deleted_count,
+    sortedCount: session.sorted_count,
+    quickDoneCount: session.quick_done_count,
+    progressType: session.progress_type,
+    progressValue: session.progress_value,
+    note: session.note ?? '',
+  })
+}

@@ -15,7 +15,8 @@ Eine mobile Web-App, mit der man Fotos, Screenshots, Downloads, Ordner und E-Mai
 - **Teilen-Knopf** bei Aufgaben – etwa in Google Notizen (Keep); am Computer wird der Text kopiert
 - **Kalender-Abo:** persönlicher Link für Google Kalender, Apple Kalender oder Outlook mit geplanten Aufräum-Terminen (Wochentage, Uhrzeit, wöchentlich / alle 2 Wochen / monatlich) und Aufgaben mit Wiedervorlage; erledigte Aufgaben verschwinden beim nächsten Abgleich
 - **Fester Serientermin** als einfache Alternative (Google-Kalender-Link oder `.ics`-Datei)
-- Verlauf, Wochencheck, CSV-Sicherung
+- Verlauf mit „Bearbeiten“ je abgeschlossener Sitzung: Dauer, Zahlen, Notiz und Bearbeitungsstand korrigieren; die letzte Einheit aktualisiert auch den aktuellen Stand, das Abschlussdatum bleibt erhalten
+- Wochencheck, CSV-Sicherung
 - Konto samt aller Daten jederzeit selbst löschbar
 - heller und dunkler Modus, installierbar auf dem Startbildschirm
 

@@ -74,6 +74,7 @@ export interface Progress {
 }
 
 export interface CleaningSession {
+  note?: string | null
   id: string
   user_id: string
   area_id: string

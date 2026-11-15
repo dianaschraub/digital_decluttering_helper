@@ -129,3 +129,35 @@ test('Bestandsübersicht zeigt Anzahl und Speicher getrennt, nach Datum und eins
   assert.equal(stockCountLabel({ ...a, icon: 'screenshots' }), 'Screenshots')
   assert.equal(latestStockByKind(area()).count, undefined)
 })
+
+test('Sitzungskorrektur erhält Identität und Datum; nur die neueste Einheit ändert den aktuellen Stand', () => {
+  const { editSession } = require('../src/lib/sessionEditing.ts')
+  const old = { id:'old', area_id:'documents', user_id:'u', finished_at:'2026-11-01T12:00:00Z', duration_minutes:20, deleted_count:0, sorted_count:0, quick_done_count:0, progress_type:'month', progress_value:'2026-01' }
+  const latest = { ...old, id:'latest', finished_at:'2026-11-02T12:00:00Z', progress_value:'2026-02' }
+  const progress = { id:'p', area_id:'documents', user_id:'u', progress_type:'month', progress_value:'2026-02', note:'bisher', updated_at:latest.finished_at }
+  const data = { sessions:[old,latest], progress:[progress] }
+  const input = { durationMinutes:25, deletedCount:12, sortedCount:3, quickDoneCount:1, progressType:'date', progressValue:'2026-01-12', note:'Ergänzung' }
+  const result = editSession(data,'old',input)
+  assert.equal(result.session.id,'old')
+  assert.equal(result.session.finished_at,old.finished_at)
+  assert.equal(result.session.deleted_count,12)
+  assert.equal(result.progress,null)
+  assert.equal(progress.progress_value,'2026-02')
+  const newest = editSession(data,'latest',{...input,progressValue:'2026-03-12'})
+  assert.equal(newest.progress.progress_value,'2026-03-12')
+  assert.equal(newest.progress.updated_at,latest.finished_at)
+  assert.equal(newest.progress.note,'Ergänzung')
+  assert.equal(data.sessions.length,2)
+})
+
+test('Sitzung bearbeiten lehnt ungültige Daten ab und verändert dabei nichts', () => {
+  const { editSession } = require('../src/lib/sessionEditing.ts')
+  const data = { sessions:[{id:'s',area_id:'documents',finished_at:'2026-11-01T12:00:00Z'}],progress:[] }
+  const input = { durationMinutes:20, deletedCount:0, sortedCount:0, quickDoneCount:0, progressType:'date', progressValue:'2026-01-12', note:'' }
+  const before = JSON.stringify(data)
+  for (const patch of [{durationMinutes:0},{deletedCount:-1},{sortedCount:1.5},{progressValue:'2026-02-31'},{progressValue:'2099-01-01'},{progressType:'other'},{note:'x'.repeat(1001)}]) {
+    assert.throws(()=>editSession(data,'s',{...input,...patch}))
+    assert.equal(JSON.stringify(data),before)
+  }
+  assert.throws(()=>editSession(data,'unknown',input))
+})

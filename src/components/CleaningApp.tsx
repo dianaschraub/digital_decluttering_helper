@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CircleAlert, Cloud, History, LayoutGrid, ListChecks, LoaderCircle, Settings, Timer } from 'lucide-react'
 import { MEMOS, suggestArea } from '../data'
-import { createTask, completeTask, deleteAccount, deleteTask, fetchCalendarToken, finishCleaningSession, loadAppData, openAttachment, saveSettings, saveWeeklyCheck } from '../lib/api'
+import { createTask, completeTask, deleteAccount, deleteTask, fetchCalendarToken, finishCleaningSession, loadAppData, openAttachment, saveSettings, saveWeeklyCheck, updateCleaningSession } from '../lib/api'
 import { logout } from '../lib/auth'
 import { openCleaningCalendar, openTaskCalendar } from '../lib/calendar'
 import { areaPoint, convertProgressValue, coveredPeriod, formatProgress, progressBoundary, todayIso } from '../lib/dates'
@@ -352,6 +352,12 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
           busy={busy}
           onWeeklyNote={setWeeklyNote}
           onWeeklyDone={finishWeeklyCheck}
+          onEdit={async (edited) => {
+            const result = await updateCleaningSession(edited)
+            setSessions((items) => items.map((item) => item.id === result.session.id ? result.session : item))
+            if (result.progress) setProgress((items) => items.map((item) => item.area_id === result.progress!.area_id ? result.progress! : item))
+            setNotice('Sitzung aktualisiert.')
+          }}
           onExport={() => exportCsv({ progress, sessions, tasks, checks }, findArea)}
         />}
 

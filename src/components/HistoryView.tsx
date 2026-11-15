@@ -1,4 +1,6 @@
-import { Check, Download } from 'lucide-react'
+import { Check, Download, Pencil } from 'lucide-react'
+import { useState } from 'react'
+import { SessionEditor } from './SessionEditor'
 import { useSettings } from '../lib/settingsContext'
 import { coveredPeriod, formatDate, formatSpan, startPoint } from '../lib/dates'
 import type { CoveredPeriod } from '../lib/dates'
@@ -14,9 +16,11 @@ export function HistoryView(props: {
   busy: boolean
   onWeeklyNote: (value: string) => void
   onWeeklyDone: () => void
+  onEdit: (session: CleaningSession) => Promise<void>
   onExport: () => void
 }) {
   const { activeAreas, findArea } = useSettings()
+  const [editing, setEditing] = useState<CleaningSession | null>(null)
   const startedAreas = activeAreas.filter((area) => props.progress.some((item) => item.area_id === area.id)).length
   const totalMinutes = props.sessions.reduce((sum, session) => sum + session.duration_minutes, 0)
   const covered = coveredBySession(props.sessions, findArea)
@@ -41,6 +45,7 @@ export function HistoryView(props: {
           : <span className="last-check">Zuletzt: {formatDate(props.checks[0]?.checked_at, true)}</span>}
       </section>
 
+      {editing && <SessionEditor session={editing} onClose={() => setEditing(null)} onSave={props.onEdit} />}
       <div className="history-list">
         <h2>Letzte Cleaning-Einheiten</h2>
         {props.sessions.length === 0 && <p className="muted">Noch keine Einheit gespeichert.</p>}
@@ -54,8 +59,14 @@ export function HistoryView(props: {
               <div>
                 <strong>{area?.title ?? session.area_id} <small>{area?.subtitle}</small></strong>
                 <p>{formatDate(session.finished_at, true)} · {session.duration_minutes} Min. · {period?.range}</p>
+                {session.note && <p style={{ whiteSpace: 'pre-wrap' }}>{session.note}</p>}
               </div>
               <div className="history-counts">
+                <button type="button" className="button ghost" disabled={props.busy} onClick={() => {
+                  const latest = props.sessions.filter((item) => item.area_id === session.area_id).reduce((best, item) => item.finished_at > best.finished_at ? item : best)
+                  const note = session.note ?? (latest.id === session.id ? props.progress.find((item) => item.area_id === session.area_id)?.note : '') ?? ''
+                  setEditing({ ...session, note })
+                }} aria-label={`Sitzung vom ${formatDate(session.finished_at, true)} bearbeiten`}><Pencil size={15} /> Bearbeiten</button>
                 {period && period.days > 0 && <span className="covered">{period.amount}</span>}
                 {hasCounts && session.deleted_count > 0 && <span>ca. {session.deleted_count} gelöscht</span>}
                 {hasCounts && session.sorted_count > 0 && <span>ca. {session.sorted_count} einsortiert</span>}
