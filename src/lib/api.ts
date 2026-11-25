@@ -15,6 +15,11 @@ export async function recordStock(areaId: string, value: number, unit: 'count' |
   return result.settings
 }
 
+export async function recordDeviceStorage(device: 'phone' | 'tablet', usedGB: number, totalGB: number) {
+  const result = await post<{ settings: UserSettings }>('record_device_storage', { device, usedGB, totalGB })
+  return result.settings
+}
+
 const API_URL = '/.netlify/functions/app-data'
 
 async function parseResponse<T>(response: Response): Promise<T> {

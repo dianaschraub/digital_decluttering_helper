@@ -65,7 +65,15 @@ export interface ReminderSettings {
   doneTasks: 'hide' | 'mark'
 }
 
+export type StorageDevice = 'phone' | 'tablet'
+export interface DeviceStorage {
+  usedGB: number
+  totalGB: number
+  updatedAt: string
+}
+
 export interface UserSettings {
+  deviceStorage?: Partial<Record<StorageDevice, DeviceStorage>>
   areas: Area[]
   destinations: Destination[]
   reminders: ReminderSettings

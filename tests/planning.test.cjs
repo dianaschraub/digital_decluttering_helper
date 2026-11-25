@@ -113,6 +113,16 @@ test('API validiert Bestände und korrigiert denselben Tag ohne Verlust anderer 
   assert.equal(current.settings.areas[0].stock.at(-1).value,120)
   assert.equal(current.settings.areas[0].adaptive,true)
   assert.equal(current.settings.areas[0].stockGoal,'reduce')
+  assert.equal((await send('record_device_storage',{device:'phone',usedGB:64,totalGB:128})).status,200)
+  assert.equal((await send('record_device_storage',{device:'tablet',usedGB:96,totalGB:256})).status,200)
+  assert.equal(current.settings.deviceStorage.phone.usedGB,64)
+  assert.equal(current.settings.deviceStorage.tablet.usedGB,96)
+  assert.equal((await send('record_device_storage',{device:'phone',usedGB:200,totalGB:128})).status,400)
+  assert.equal((await send('record_device_storage',{device:'other',usedGB:10,totalGB:128})).status,400)
+  assert.equal(current.settings.deviceStorage.phone.usedGB,64)
+  assert.equal((await send('save_settings',{settings:stale})).status,200)
+  assert.equal(current.settings.deviceStorage.phone.usedGB,64)
+  assert.equal(current.settings.deviceStorage.tablet.usedGB,96)
 })
 
 
@@ -218,4 +228,17 @@ test('Restbestände nachträglich löschen entfernt nur die Messpunkte dieser Si
   assert.equal(a.stock.length,1)
   assert.equal(a.stock[0].value,50)
   assert.equal(data.sessions[0].remaining_count,null)
+})
+
+
+test('Gerätespeicher berechnet GB, freie Kapazität und Prozent und verwirft ungültige Werte', () => {
+  const { storageUsage, sanitizeDeviceStorage } = require('../src/lib/deviceStorage.ts')
+  assert.deepEqual(storageUsage(64,128),{usedGB:64,totalGB:128,freeGB:64,percent:50})
+  assert.equal(storageUsage(0,128).percent,0)
+  assert.equal(storageUsage(128,128).percent,100)
+  assert.equal(storageUsage(12.5,25).percent,50)
+  for (const values of [[-1,128],[129,128],[0,0],[NaN,128],[10,Infinity],['64',128]]) assert.throws(()=>storageUsage(...values))
+  const valid={usedGB:64,totalGB:128,updatedAt:'2026-11-25T10:00:00Z'}
+  assert.deepEqual(sanitizeDeviceStorage({phone:valid,tablet:{...valid,totalGB:0}}),{phone:valid})
+  assert.deepEqual(sanitizeDeviceStorage(undefined),{})
 })

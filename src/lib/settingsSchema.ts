@@ -1,5 +1,6 @@
 // Gemeinsame Regeln für Bereiche und Ablageorte – genutzt von der App und der
 // Netlify-Funktion. Ohne DOM-Abhängigkeiten, damit beide Seiten sie importieren können.
+import { sanitizeDeviceStorage } from './deviceStorage'
 import type { StockMeasurement, Area, AreaIconName, AreaKind, AreaStatus, Destination, ReminderFrequency, ReminderSettings, UserSettings } from '../types'
 
 export const MAX_AREAS = 40
@@ -102,7 +103,7 @@ export function makeId(prefix: string) {
 
 /** Prüft und bereinigt Einstellungen; wirft einen Fehler mit verständlicher Meldung. */
 export function sanitizeSettings(input: unknown): UserSettings {
-  const raw = (input && typeof input === 'object' ? input : {}) as { areas?: unknown; destinations?: unknown; reminders?: unknown }
+  const raw = (input && typeof input === 'object' ? input : {}) as { areas?: unknown; destinations?: unknown; reminders?: unknown; deviceStorage?: unknown }
   const rawAreas = Array.isArray(raw.areas) ? raw.areas.slice(0, MAX_AREAS) : []
   const rawDestinations = Array.isArray(raw.destinations) ? raw.destinations.slice(0, MAX_DESTINATIONS) : []
   const seen = new Set<string>()
@@ -152,7 +153,7 @@ export function sanitizeSettings(input: unknown): UserSettings {
     seen.add(id)
     destinations.push({ id, label, note: text(value.note, 60), kinds: [...new Set(kinds)] })
   }
-  return { areas, destinations, reminders: sanitizeReminders(raw.reminders) }
+  return { areas, destinations, reminders: sanitizeReminders(raw.reminders), deviceStorage: sanitizeDeviceStorage(raw.deviceStorage) }
 }
 
 /** Ältere gespeicherte Einstellungen ohne Erinnerungen ergänzen. */

@@ -21,6 +21,10 @@ Eine mobile Web-App, mit der man Fotos, Screenshots, Downloads, Ordner und E-Mai
 - Konto samt aller Daten jederzeit selbst löschbar
 - heller und dunkler Modus, installierbar auf dem Startbildschirm
 
+## Gerätespeicher für Handy und Tablet
+
+Unter **Bereiche → Speicher deiner Geräte** zeigen zwei getrennte Karten den belegten Speicher in GB, den Anteil in Prozent und die freie Kapazität als Ringdiagramm. Je Gerät werden belegte GB und Gesamtspeicher manuell aus den Geräteeinstellungen übernommen, gespeichert und mit Messdatum angezeigt. Beispiel: 64 von 128 GB = 50 %. Ohne Eingabe bleibt der Wert unbekannt. Die Angabe umfasst den gesamten Gerätespeicher inklusive Apps und System; Bereichsmessungen wie Fotos und Screenshots werden dafür nicht summiert. Die Gerätewerte sind unabhängig von den Restbeständen pro Sitzung und der Termin-Automatik.
+
 ## Bestandsmessung und automatische Termine
 
 Unter **Bereiche → Bestand & automatische Termine** lassen sich pro Rubrik freiwillig datierte Bestände als Anzahl, MB oder GB eintragen. Möglichst nach dem Aufräumen messen, damit die Werte vergleichbar bleiben. MB/GB werden mit 1 GB = 1.000 MB umgerechnet; Anzahlen bilden eine eigene Messreihe. Pro Tag und Messart ersetzt eine Korrektur den vorhandenen Wert, maximal 100 Messungen pro Rubrik bleiben erhalten.

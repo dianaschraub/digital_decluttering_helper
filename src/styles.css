@@ -536,3 +536,22 @@ textarea { resize: vertical; }
 .area-stock > span:not(.area-stock-label) { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
 .area-stock strong { font-size: 1rem; }
 .area-stock small { color: var(--muted); font-size: .75rem; }
+
+.device-storage-overview { margin: 24px 0 36px; }
+.device-storage-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.device-storage-card { min-width: 0; padding: 22px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+.device-storage-card h3 { display: flex; gap: 10px; align-items: center; margin: 0 0 20px; }
+.device-storage-visual { display: flex; gap: 24px; align-items: center; }
+.device-storage-visual p { margin: 4px 0; }
+.storage-gb { display: block; font-size: 1.15rem; }
+.storage-donut { flex: 0 0 116px; width: 116px; height: 116px; border-radius: 50%; background: conic-gradient(var(--accent) var(--usage), var(--surface-3) 0); display: grid; place-items: center; position: relative; }
+.storage-donut::before { content: ''; position: absolute; inset: 12px; background: var(--surface); border-radius: 50%; }
+.storage-donut span { position: relative; font-size: 1.15rem; font-weight: 700; }
+.device-storage-editor { margin-top: 18px; }
+.device-storage-editor summary { cursor: pointer; }
+.device-storage-editor form { margin-top: 16px; }
+.device-storage-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.device-storage-fields label { display: grid; gap: 6px; font-size: .8rem; }
+.device-storage-fields input { min-width: 0; width: 100%; }
+@media (max-width: 700px) { .device-storage-grid { grid-template-columns: 1fr; } }
+@media (max-width: 380px) { .device-storage-card { padding: 16px; } .device-storage-visual { gap: 14px; } .storage-donut { flex-basis: 96px; width: 96px; height: 96px; } }

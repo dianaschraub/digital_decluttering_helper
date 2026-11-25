@@ -1,3 +1,4 @@
+import { DeviceStorageOverview } from './DeviceStorageOverview'
 import { latestStockByKind, stockCountLabel } from '../lib/stock'
 import { StockForm } from './StockForm'
 import { ArrowRight } from 'lucide-react'
@@ -13,6 +14,7 @@ export function AreasView({ progress, selectedAreaId, onChoose, onSettings, onSt
   return (
     <section>
       <div className="page-heading"><div><p className="eyebrow">Deine {activeAreas.length} Eingänge</p><h1>Bereiche</h1><p>Bestand und Bearbeitungsstand je Bereich. Trage Anzahl oder Speichergröße unter „Bestand & automatische Termine“ ein.</p></div><button className="button ghost" onClick={onSettings}>Bereiche bearbeiten</button></div>
+      <DeviceStorageOverview onSaved={onStockSaved} />
       {groups.map((group) => (
         <div className="area-group" key={group}>
           <h2 className="group-title">{group}</h2>

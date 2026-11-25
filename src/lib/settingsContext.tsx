@@ -7,6 +7,7 @@ interface SettingsValue {
   allAreas: Area[]
   /** Bereiche, die gerade bearbeitet werden. */
   activeAreas: Area[]
+  deviceStorage: NonNullable<UserSettings['deviceStorage']>
   destinations: Destination[]
   findArea: (id: string | null | undefined) => Area | undefined
 }
@@ -20,6 +21,7 @@ export function SettingsProvider({ settings, children }: { settings: UserSetting
       allAreas: settings.areas,
       activeAreas: settings.areas.filter((area) => area.status === 'active'),
       destinations: settings.destinations,
+      deviceStorage: settings.deviceStorage ?? {},
       findArea: (id) => (id ? byId.get(id) : undefined),
     }
   }, [settings])

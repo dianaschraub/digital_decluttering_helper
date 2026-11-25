@@ -1,6 +1,7 @@
 import { admin, getUser, verifyRequestOrigin } from '@netlify/identity'
 import type { User } from '@netlify/identity'
 import type { Context } from '@netlify/functions'
+import { storageUsage } from '../../src/lib/deviceStorage'
 import { syncSessionStock, validateRemaining } from '../../src/lib/sessionStock'
 import { editSession } from '../../src/lib/sessionEditing'
 import { sanitizeSettings, withDefaults } from '../../src/lib/settingsSchema'
@@ -155,10 +156,25 @@ export default async (request: Request, _context: Context) => {
           const current = data.settings?.areas.find((item) => item.id === area.id)
           return { ...area, stock: current?.stock ?? [], adaptive: current?.adaptive ?? false, stockGoal: current?.stockGoal ?? 'maintain' }
         })
+        settings.deviceStorage = data.settings?.deviceStorage ?? {}
         data.settings = settings
         return settings
       })
       return json({ settings: saved })
+    }
+
+    if (action === 'record_device_storage') {
+      const device = payload.device
+      if (device !== 'phone' && device !== 'tablet') throw new HttpError(400, 'Ungültiges Gerät.')
+      let usage
+      try { usage = storageUsage(payload.usedGB, payload.totalGB) }
+      catch (error) { throw new HttpError(400, error instanceof Error ? error.message : 'Ungültige Speicherwerte.') }
+      const settings = await updateUserData(userId, (data) => {
+        if (!data.settings) throw new HttpError(400, 'Bitte zuerst die Einrichtung abschließen.')
+        data.settings.deviceStorage = { ...data.settings.deviceStorage, [device]: { usedGB: usage.usedGB, totalGB: usage.totalGB, updatedAt: new Date().toISOString() } }
+        return data.settings
+      })
+      return json({ settings })
     }
 
     if (action === 'record_stock') {
