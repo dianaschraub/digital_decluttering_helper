@@ -29,6 +29,8 @@ export function TodayView(props: {
   dueTasks: CleaningTask[]
   weeklyDue: boolean
   onChooseArea: (id: string) => void
+  onTestAlarm: () => void
+  alarmMessage: string
   onToggleTimer: () => void
   onResetTimer: () => void
   onNewTask: () => void
@@ -103,6 +105,9 @@ export function TodayView(props: {
               </button>
               <button className="button ghost" onClick={props.onResetTimer} disabled={!props.started} aria-label="Timer zurücksetzen"><RotateCcw size={17} /></button>
             </div>
+            <button type="button" className="calendar-link" onClick={props.onTestAlarm}>Alarm testen</button>
+            {props.alarmMessage && <p className="small muted" role="status">{props.alarmMessage}</p>}
+            <p className="small muted">Signalton bei Zeitablauf. Bei gesperrtem Gerät oder angehaltener Hintergrund-App kann er verzögert sein.</p>
             <button className="calendar-link" onClick={props.onCalendar}><CalendarPlus size={14} /> In Google Kalender planen</button>
           </div>
 

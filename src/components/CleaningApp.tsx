@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CircleAlert, Cloud, History, LayoutGrid, ListChecks, LoaderCircle, Settings, Timer } from 'lucide-react'
+import { TimerAlarm } from '../lib/timerAlarm'
 import { MEMOS, suggestArea } from '../data'
 import { createTask, completeTask, deleteAccount, deleteTask, fetchCalendarToken, finishCleaningSession, loadAppData, openAttachment, saveSettings, saveWeeklyCheck, updateCleaningSession } from '../lib/api'
 import { logout } from '../lib/auth'
@@ -93,9 +94,14 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
   const [taskDraft, setTaskDraft] = useState<TaskDraft>(EMPTY_TASK)
   const [busy, setBusy] = useState(false)
   const [weeklyNote, setWeeklyNote] = useState('')
+  const [alarm] = useState(() => new TimerAlarm())
+  const [alarmMessage, setAlarmMessage] = useState('')
+  useEffect(() => () => alarm.dispose(), [alarm])
+  const reportAlarm = (ok: boolean) => setAlarmMessage(ok ? '' : 'Alarmton nicht verfügbar. Prüfe Lautstärke und Browserfreigabe über „Alarm testen“.')
 
   const isActiveArea = (id: string) => activeAreas.some((area) => area.id === id)
   const session = useCleaningSession(activeAreas[0].id, isActiveArea, () => {
+    void alarm.ring().then(reportAlarm)
     vibrate([200, 100, 200, 100, 400])
     setTimeUp(true)
     setNotice('Die 20 Minuten sind geschafft. Speichere jetzt deinen Stand.')
@@ -319,9 +325,11 @@ function Workspace({ initial, email, settings, onSettingsSaved }: {
           onChooseArea={chooseArea}
           onToggleTimer={() => {
             if (session.running) session.pause()
-            else { setTimeUp(false); if (session.remainingMs <= 0) session.resetTimer(); session.start() }
+            else { void alarm.prepare().then(reportAlarm); setTimeUp(false); if (session.remainingMs <= 0) session.resetTimer(); session.start() }
           }}
-          onResetTimer={() => { session.resetTimer(); setTimeUp(false) }}
+          onTestAlarm={() => { void alarm.ring().then((ok) => setAlarmMessage(ok ? 'Testton abgespielt. Prüfe, ob du ihn hören kannst.' : 'Alarmton nicht verfügbar. Bitte Browserfreigabe und Gerätelautstärke prüfen.')) }}
+          alarmMessage={alarmMessage}
+          onResetTimer={() => { alarm.stop(); session.resetTimer(); setTimeUp(false) }}
           onNewTask={() => openNewTask()}
           onFinish={openFinish}
           onCalendar={() => openCleaningCalendar(`${selectedArea.title} (${selectedArea.subtitle})`)}

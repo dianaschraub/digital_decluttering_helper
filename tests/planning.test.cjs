@@ -242,3 +242,14 @@ test('Gerätespeicher berechnet GB, freie Kapazität und Prozent und verwirft un
   assert.deepEqual(sanitizeDeviceStorage({phone:valid,tablet:{...valid,totalGB:0}}),{phone:valid})
   assert.deepEqual(sanitizeDeviceStorage(undefined),{})
 })
+
+test('Alarm behandelt fehlendes Audio und abgelehnte Browserfreigaben ohne Absturz', async () => {
+  const { TimerAlarm } = require('../src/lib/timerAlarm.ts')
+  const missing = new TimerAlarm(() => { throw new Error('unsupported') })
+  assert.equal(await missing.ring(),false)
+  missing.dispose()
+  const blocked = new TimerAlarm(() => ({state:'suspended',resume:async()=>{throw new Error('not allowed')},close:async()=>{}}))
+  assert.equal(await blocked.prepare(),false)
+  assert.equal(await blocked.ring(),false)
+  blocked.dispose()
+})
